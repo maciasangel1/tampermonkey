@@ -1,0 +1,31 @@
+{
+  "name": "md-config-service",
+  "version": "1.0.0",
+  "description": "CLI service that generates Markdown configuration files for Open Web UI AI model chats based on interactive feedback questions.",
+  "main": "index.js",
+  "bin": {
+    "md-config": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest src/__tests__"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maciasangel1/tampermonkey.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/maciasangel1/tampermonkey/issues"
+  },
+  "homepage": "https://github.com/maciasangel1/tampermonkey#readme",
+  "dependencies": {
+    "readline-sync": "^1.4.10"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}
