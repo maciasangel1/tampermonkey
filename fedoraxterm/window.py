@@ -166,11 +166,11 @@ notebook header tab {
     background-color: transparent;
     border: 1px solid transparent;
     border-radius: 6px 0 0 6px;
-    padding: 6px 8px;
+    padding: 4px 4px;
     margin: 1px 0 1px 1px;
     color: #98989d;
-    min-height: 24px;
-    min-width: 30px;
+    min-height: 20px;
+    min-width: 24px;
 }
 notebook header tab:checked {
     background-color: #1c1c1e;
@@ -349,8 +349,8 @@ spinbutton {
 
 
 # Tab label width constraints (in characters)
-_TAB_LABEL_MIN_CHARS = 16  # Minimum width to ensure hostnames are visible
-_TAB_LABEL_MAX_CHARS = 40  # Maximum before ellipsis kicks in
+_TAB_LABEL_MIN_CHARS = 8   # Compact tabs — tooltip shows full title
+_TAB_LABEL_MAX_CHARS = 20  # Maximum before ellipsis kicks in
 
 
 def _load_css():
@@ -423,7 +423,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._left_vpaned.pack2(self._sftp_frame, resize=True, shrink=True)
         self._sftp_visible = False
 
-        self._hpaned.pack1(self._left_vpaned, resize=False, shrink=True)
+        self._hpaned.pack1(self._left_vpaned, resize=True, shrink=False)
         self._hpaned.set_position(260)
 
         # Terminal notebook (right / centre area)

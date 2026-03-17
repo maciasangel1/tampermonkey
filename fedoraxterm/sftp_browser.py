@@ -41,7 +41,7 @@ class SFTPBrowser(Gtk.Box):
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        self.set_size_request(260, -1)
+        self.set_size_request(100, -1)
 
         self._sftp: Optional["paramiko.SFTPClient"] = None
         self._transport: Optional["paramiko.Transport"] = None
