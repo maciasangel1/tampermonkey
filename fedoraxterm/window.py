@@ -1,11 +1,11 @@
 """Main application window for FedoraXTerm.
 
-Reproduces the MobaXterm layout:
+Reproduces the MobaXterm layout with a modern, macOS-inspired aesthetic:
 * Left sidebar — session manager with saved SSH / RDP / VNC / serial sessions
 * Centre — tabbed terminal area (VTE terminals for local / SSH / telnet / serial)
 * Right sidebar (toggleable) — SFTP file browser (auto-opens with SSH sessions)
 * Bottom bar — multi-execution input, status
-* Menu bar & toolbar — access to all tools
+* Header bar & toolbar — access to all tools
 """
 
 import os
@@ -15,7 +15,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Vte", "2.91")
-from gi.repository import Gtk, Gdk, GLib, Vte
+from gi.repository import Gtk, Gdk, GLib, Pango, Vte
 
 from fedoraxterm import __app_name__, __version__
 from fedoraxterm.settings import SettingsManager, SSHSession, AppSettings
@@ -36,6 +36,328 @@ from fedoraxterm.remote_sessions import (
 )
 
 
+# ======================================================================
+# macOS-inspired CSS theme
+# ======================================================================
+
+_MACOS_CSS = """
+/* ---------- Global dark theme ---------- */
+window, .background {
+    background-color: #1c1c1e;
+    color: #f5f5f7;
+}
+
+/* ---------- Header bar (title bar) ---------- */
+headerbar {
+    background: linear-gradient(to bottom, #3a3a3c, #2c2c2e);
+    border-bottom: 1px solid #1c1c1e;
+    padding: 4px 8px;
+    min-height: 38px;
+}
+headerbar .title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #f5f5f7;
+}
+headerbar .subtitle {
+    font-size: 11px;
+    color: #98989d;
+}
+headerbar button {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #f5f5f7;
+    min-height: 24px;
+    min-width: 24px;
+}
+headerbar button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+headerbar button:active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ---------- Menu bar ---------- */
+menubar {
+    background-color: #2c2c2e;
+    border-bottom: 1px solid #3a3a3c;
+    padding: 2px 6px;
+    color: #f5f5f7;
+}
+menubar > menuitem {
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: #f5f5f7;
+}
+menubar > menuitem:hover {
+    background-color: #0a84ff;
+}
+menu {
+    background-color: #2c2c2e;
+    border: 1px solid #48484a;
+    border-radius: 10px;
+    padding: 4px 0;
+}
+menu menuitem {
+    padding: 6px 16px;
+    color: #f5f5f7;
+}
+menu menuitem:hover {
+    background-color: #0a84ff;
+    border-radius: 6px;
+}
+menu separator {
+    background-color: #48484a;
+    margin: 4px 12px;
+    min-height: 1px;
+}
+
+/* ---------- Toolbar ---------- */
+toolbar {
+    background-color: #2c2c2e;
+    border-bottom: 1px solid #3a3a3c;
+    padding: 3px 6px;
+}
+toolbar .toolbar-button {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 4px 10px;
+    color: #e5e5ea;
+    margin: 1px 2px;
+    transition: all 200ms ease;
+}
+toolbar .toolbar-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+toolbar .toolbar-button:active {
+    background-color: rgba(10, 132, 255, 0.25);
+    border-color: #0a84ff;
+}
+toolbar .toolbar-button image {
+    color: #0a84ff;
+}
+toolbar .toolbar-button label {
+    color: #e5e5ea;
+    font-size: 11px;
+}
+toolbar separator {
+    background-color: #48484a;
+    margin: 4px 4px;
+    min-width: 1px;
+}
+
+/* ---------- Notebook tabs ---------- */
+notebook {
+    background-color: #1c1c1e;
+}
+notebook header {
+    background-color: #2c2c2e;
+    border-bottom: 1px solid #3a3a3c;
+    padding: 0 4px;
+}
+notebook header tabs {
+    background: transparent;
+}
+notebook header tab {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px 8px 0 0;
+    padding: 6px 12px;
+    margin: 2px 1px 0 1px;
+    color: #98989d;
+    min-width: 100px;
+}
+notebook header tab:checked {
+    background-color: #1c1c1e;
+    border-color: #3a3a3c;
+    border-bottom-color: #1c1c1e;
+    color: #f5f5f7;
+}
+notebook header tab:hover:not(:checked) {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #e5e5ea;
+}
+notebook header tab label {
+    font-size: 12px;
+    padding: 0 4px;
+}
+notebook header tab button {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 1px;
+    min-height: 16px;
+    min-width: 16px;
+    color: #98989d;
+}
+notebook header tab button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: #ff453a;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar-frame {
+    background-color: #1c1c1e;
+    border-right: 1px solid #3a3a3c;
+}
+.sidebar-frame treeview {
+    background-color: #1c1c1e;
+    color: #f5f5f7;
+}
+.sidebar-frame treeview:selected {
+    background-color: #0a84ff;
+    color: white;
+}
+.sidebar-frame treeview:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ---------- SFTP pane ---------- */
+.sftp-frame {
+    background-color: #1c1c1e;
+    border-left: 1px solid #3a3a3c;
+}
+
+/* ---------- Status bar ---------- */
+.modern-statusbar {
+    background-color: #2c2c2e;
+    border-top: 1px solid #3a3a3c;
+    padding: 3px 12px;
+    color: #98989d;
+    font-size: 11px;
+    min-height: 22px;
+}
+.modern-statusbar label {
+    color: #98989d;
+    font-size: 11px;
+}
+
+/* ---------- Buttons (generic) ---------- */
+button {
+    border-radius: 6px;
+    padding: 4px 12px;
+    border: 1px solid #48484a;
+    background: linear-gradient(to bottom, #3a3a3c, #2c2c2e);
+    color: #f5f5f7;
+    min-height: 24px;
+}
+button:hover {
+    background: linear-gradient(to bottom, #48484a, #3a3a3c);
+    border-color: #636366;
+}
+button:active {
+    background-color: #0a84ff;
+    border-color: #0a84ff;
+}
+button.flat, button.titlebutton {
+    background: transparent;
+    border: none;
+}
+
+/* ---------- Accent button ---------- */
+.suggested-action {
+    background: linear-gradient(to bottom, #0a84ff, #0070e0);
+    border-color: #0060c0;
+    color: white;
+    font-weight: 600;
+}
+.suggested-action:hover {
+    background: linear-gradient(to bottom, #409cff, #0a84ff);
+}
+
+/* ---------- Entries ---------- */
+entry {
+    background-color: #1c1c1e;
+    color: #f5f5f7;
+    border: 1px solid #48484a;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-height: 26px;
+}
+entry:focus {
+    border-color: #0a84ff;
+    box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+}
+
+/* ---------- Dialogs ---------- */
+dialog .dialog-vbox {
+    background-color: #2c2c2e;
+}
+
+/* ---------- Frames & Panes ---------- */
+paned separator {
+    background-color: #3a3a3c;
+    min-width: 1px;
+    min-height: 1px;
+}
+frame {
+    border: none;
+}
+
+/* ---------- Scrollbar (thin, macOS style) ---------- */
+scrollbar {
+    background: transparent;
+}
+scrollbar slider {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    min-width: 6px;
+    min-height: 6px;
+}
+scrollbar slider:hover {
+    background-color: rgba(255, 255, 255, 0.35);
+}
+scrollbar slider:active {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---------- Tooltips ---------- */
+tooltip {
+    background-color: #2c2c2e;
+    border: 1px solid #48484a;
+    border-radius: 8px;
+    color: #f5f5f7;
+    padding: 6px 10px;
+}
+
+/* ---------- CheckButton ---------- */
+checkbutton check {
+    border-radius: 4px;
+    border: 1px solid #636366;
+    background-color: #1c1c1e;
+    min-width: 16px;
+    min-height: 16px;
+}
+checkbutton check:checked {
+    background-color: #0a84ff;
+    border-color: #0a84ff;
+}
+
+/* ---------- Spinner / Progress ---------- */
+spinbutton {
+    background-color: #1c1c1e;
+    color: #f5f5f7;
+    border: 1px solid #48484a;
+    border-radius: 6px;
+}
+"""
+
+
+def _load_css():
+    """Load the macOS-inspired CSS theme into the default screen."""
+    provider = Gtk.CssProvider()
+    provider.load_from_data(_MACOS_CSS.encode("utf-8"))
+    screen = Gdk.Screen.get_default()
+    if screen:
+        Gtk.StyleContext.add_provider_for_screen(
+            screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+
 class MainWindow(Gtk.ApplicationWindow):
     """The primary FedoraXTerm window."""
 
@@ -46,6 +368,9 @@ class MainWindow(Gtk.ApplicationWindow):
             default_width=1200,
             default_height=800,
         )
+
+        # Load macOS-inspired theme
+        _load_css()
 
         # -- Managers --
         self._settings_mgr = SettingsManager()
@@ -78,6 +403,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self._settings_mgr, on_connect_callback=self._on_session_connect
         )
         sidebar_frame = Gtk.Frame()
+        sidebar_frame.get_style_context().add_class("sidebar-frame")
         sidebar_frame.add(self._sidebar)
         self._hpaned.pack1(sidebar_frame, resize=False, shrink=False)
         self._hpaned.set_position(240)
@@ -96,6 +422,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # SFTP browser (right)
         self._sftp_browser = SFTPBrowser()
         sftp_frame = Gtk.Frame()
+        sftp_frame.get_style_context().add_class("sftp-frame")
         sftp_frame.add(self._sftp_browser)
         self._right_paned.pack2(sftp_frame, resize=False, shrink=True)
         self._right_paned.set_position(800)
@@ -106,8 +433,19 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         main_vbox.pack_start(self._multi_exec, False, False, 0)
 
-        # Status bar
-        self._statusbar = Gtk.Statusbar()
+        # Status bar (modern flat style)
+        self._statusbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self._statusbar.get_style_context().add_class("modern-statusbar")
+        self._status_icon = Gtk.Image.new_from_icon_name(
+            "emblem-default-symbolic", Gtk.IconSize.MENU
+        )
+        self._statusbar.pack_start(self._status_icon, False, False, 4)
+        self._status_label = Gtk.Label(label="Ready")
+        self._status_label.set_xalign(0)
+        self._statusbar.pack_start(self._status_label, True, True, 0)
+        self._tab_count_label = Gtk.Label()
+        self._tab_count_label.set_xalign(1)
+        self._statusbar.pack_end(self._tab_count_label, False, False, 8)
         main_vbox.pack_start(self._statusbar, False, False, 0)
         self._push_status("Ready")
 
@@ -178,23 +516,48 @@ class MainWindow(Gtk.ApplicationWindow):
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
         hb.set_title(__app_name__)
-        hb.set_subtitle("Enhanced Terminal & SSH Client for Linux")
+        hb.set_subtitle("Terminal & SSH Client")
+        hb.set_decoration_layout("close,minimize,maximize:")
         self.set_titlebar(hb)
 
-        # Quick buttons on the headerbar
-        new_term_btn = Gtk.Button.new_from_icon_name(
+        # Left side: New terminal + New SSH (pill-shaped group)
+        left_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+
+        new_term_btn = Gtk.Button()
+        term_icon = Gtk.Image.new_from_icon_name(
             "utilities-terminal-symbolic", Gtk.IconSize.BUTTON
         )
+        new_term_btn.set_image(term_icon)
         new_term_btn.set_tooltip_text("New Local Terminal (Ctrl+T)")
+        new_term_btn.set_relief(Gtk.ReliefStyle.NONE)
         new_term_btn.connect("clicked", lambda _b: self.add_local_terminal_tab())
-        hb.pack_start(new_term_btn)
+        left_box.pack_start(new_term_btn, False, False, 0)
 
-        new_ssh_btn = Gtk.Button.new_from_icon_name(
+        new_ssh_btn = Gtk.Button()
+        ssh_icon = Gtk.Image.new_from_icon_name(
             "network-server-symbolic", Gtk.IconSize.BUTTON
         )
+        new_ssh_btn.set_image(ssh_icon)
         new_ssh_btn.set_tooltip_text("New SSH Session (Ctrl+N)")
+        new_ssh_btn.set_relief(Gtk.ReliefStyle.NONE)
         new_ssh_btn.connect("clicked", lambda _b: self.show_ssh_dialog())
-        hb.pack_start(new_ssh_btn)
+        left_box.pack_start(new_ssh_btn, False, False, 0)
+
+        hb.pack_start(left_box)
+
+        # Right side: settings gear
+        settings_btn = Gtk.Button()
+        gear_icon = Gtk.Image.new_from_icon_name(
+            "emblem-system-symbolic", Gtk.IconSize.BUTTON
+        )
+        settings_btn.set_image(gear_icon)
+        settings_btn.set_tooltip_text("About")
+        settings_btn.set_relief(Gtk.ReliefStyle.NONE)
+        settings_btn.connect(
+            "clicked",
+            lambda _b: self.get_application().activate_action("about", None),
+        )
+        hb.pack_end(settings_btn)
 
     def _build_menubar(self) -> Gtk.MenuBar:
         menubar = Gtk.MenuBar()
@@ -287,36 +650,51 @@ class MainWindow(Gtk.ApplicationWindow):
 
         return menubar
 
-    def _build_toolbar(self) -> Gtk.Toolbar:
-        toolbar = Gtk.Toolbar()
-        toolbar.set_style(Gtk.ToolbarStyle.BOTH_HORIZ)
-        toolbar.set_icon_size(Gtk.IconSize.SMALL_TOOLBAR)
+    def _build_toolbar(self) -> Gtk.Box:
+        toolbar_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        toolbar_box.get_style_context().add_class("toolbar")
+        toolbar_box.set_margin_start(6)
+        toolbar_box.set_margin_end(6)
+        toolbar_box.set_margin_top(2)
+        toolbar_box.set_margin_bottom(2)
 
         items = [
-            ("utilities-terminal", "Shell", self.add_local_terminal_tab),
-            ("network-server", "SSH", self.show_ssh_dialog),
-            ("preferences-desktop-remote-desktop", "RDP", self._show_rdp_dialog),
-            ("preferences-desktop-display", "VNC", self._show_vnc_dialog),
-            ("network-wired", "Telnet", self._show_telnet_dialog),
-            ("media-removable", "Serial", self._show_serial_dialog),
+            ("utilities-terminal-symbolic", "Shell", self.add_local_terminal_tab),
+            ("network-server-symbolic", "SSH", self.show_ssh_dialog),
+            ("preferences-desktop-remote-desktop-symbolic", "RDP", self._show_rdp_dialog),
+            ("preferences-desktop-display-symbolic", "VNC", self._show_vnc_dialog),
+            ("network-wired-symbolic", "Telnet", self._show_telnet_dialog),
+            ("media-removable-symbolic", "Serial", self._show_serial_dialog),
             (None, None, None),  # separator
-            ("network-workgroup", "Tunnels", self._show_tunnel_dialog),
-            ("utilities-system-monitor", "Net Tools", self.show_network_tools),
-            ("accessories-text-editor", "Editor", self._show_text_editor),
-            ("media-record", "Macros", self._show_macro_dialog),
+            ("network-workgroup-symbolic", "Tunnels", self._show_tunnel_dialog),
+            ("utilities-system-monitor-symbolic", "Net Tools", self.show_network_tools),
+            ("accessories-text-editor-symbolic", "Editor", self._show_text_editor),
+            ("media-record-symbolic", "Macros", self._show_macro_dialog),
         ]
-        for icon, label, callback in items:
-            if icon is None:
-                toolbar.insert(Gtk.SeparatorToolItem(), -1)
+        for icon_name, label_text, callback in items:
+            if icon_name is None:
+                sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+                sep.set_margin_top(4)
+                sep.set_margin_bottom(4)
+                toolbar_box.pack_start(sep, False, False, 4)
                 continue
-            btn = Gtk.ToolButton()
-            btn.set_icon_name(icon)
-            btn.set_label(label)
-            btn.set_tooltip_text(label)
-            btn.connect("clicked", lambda _b, cb=callback: cb())
-            toolbar.insert(btn, -1)
 
-        return toolbar
+            btn = Gtk.Button()
+            btn.get_style_context().add_class("toolbar-button")
+            btn.set_relief(Gtk.ReliefStyle.NONE)
+
+            btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.SMALL_TOOLBAR)
+            btn_box.pack_start(icon, False, False, 0)
+            lbl = Gtk.Label(label=label_text)
+            btn_box.pack_start(lbl, False, False, 0)
+            btn.add(btn_box)
+
+            btn.set_tooltip_text(label_text)
+            btn.connect("clicked", lambda _b, cb=callback: cb())
+            toolbar_box.pack_start(btn, False, False, 0)
+
+        return toolbar_box
 
     # ======================================================================
     # Tab management
@@ -326,30 +704,54 @@ class MainWindow(Gtk.ApplicationWindow):
         """Add a new terminal tab with a close button."""
         self._tab_counter += 1
 
-        # Tab label with close button
-        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        # Tab label with close button — wide enough to show hostnames
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+        # Connection-type icon
+        if title.startswith("SSH") or "@" in title:
+            icon_name = "network-server-symbolic"
+        elif title.startswith("RDP"):
+            icon_name = "preferences-desktop-remote-desktop-symbolic"
+        elif title.startswith("VNC"):
+            icon_name = "preferences-desktop-display-symbolic"
+        elif title.startswith("Telnet"):
+            icon_name = "network-wired-symbolic"
+        elif title.startswith("Serial"):
+            icon_name = "media-removable-symbolic"
+        else:
+            icon_name = "utilities-terminal-symbolic"
+
+        tab_icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.MENU)
+        tab_box.pack_start(tab_icon, False, False, 0)
+
         label = Gtk.Label(label=title)
-        label.set_max_width_chars(30)
-        label.set_ellipsize(3)  # PANGO_ELLIPSIZE_END
+        label.set_width_chars(16)
+        label.set_max_width_chars(40)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        label.set_tooltip_text(title)
         tab_box.pack_start(label, True, True, 0)
 
-        close_btn = Gtk.Button.new_from_icon_name(
+        close_btn = Gtk.Button()
+        close_icon = Gtk.Image.new_from_icon_name(
             "window-close-symbolic", Gtk.IconSize.MENU
         )
+        close_btn.set_image(close_icon)
         close_btn.set_relief(Gtk.ReliefStyle.NONE)
         close_btn.connect("clicked", self._on_close_tab, terminal)
-        tab_box.pack_start(close_btn, False, False, 0)
+        tab_box.pack_end(close_btn, False, False, 0)
         tab_box.show_all()
 
         idx = self._notebook.append_page(terminal, tab_box)
         self._notebook.set_tab_reorderable(terminal, True)
         terminal.show_all()
         self._notebook.set_current_page(idx)
+        self._update_tab_count()
 
     def _on_close_tab(self, _btn, terminal):
         idx = self._notebook.page_num(terminal)
         if idx >= 0:
             self._notebook.remove_page(idx)
+            self._update_tab_count()
 
     def _on_tab_switched(self, _notebook, page, _page_num):
         """Update the window title when tabs change."""
@@ -553,8 +955,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.set_default_size(s.window_width, s.window_height)
 
     def _push_status(self, text: str):
-        ctx = self._statusbar.get_context_id("main")
-        self._statusbar.push(ctx, text)
+        self._status_label.set_text(text)
+
+    def _update_tab_count(self):
+        """Update the tab count display in the status bar."""
+        count = self._notebook.get_n_pages()
+        self._tab_count_label.set_text(f"{count} tab{'s' if count != 1 else ''}")
 
 
 # ======================================================================
