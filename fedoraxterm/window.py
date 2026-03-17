@@ -347,6 +347,11 @@ spinbutton {
 """
 
 
+# Tab label width constraints (in characters)
+_TAB_LABEL_MIN_CHARS = 16  # Minimum width to ensure hostnames are visible
+_TAB_LABEL_MAX_CHARS = 40  # Maximum before ellipsis kicks in
+
+
 def _load_css():
     """Load the macOS-inspired CSS theme into the default screen."""
     provider = Gtk.CssProvider()
@@ -725,8 +730,8 @@ class MainWindow(Gtk.ApplicationWindow):
         tab_box.pack_start(tab_icon, False, False, 0)
 
         label = Gtk.Label(label=title)
-        label.set_width_chars(16)
-        label.set_max_width_chars(40)
+        label.set_width_chars(_TAB_LABEL_MIN_CHARS)
+        label.set_max_width_chars(_TAB_LABEL_MAX_CHARS)
         label.set_ellipsize(Pango.EllipsizeMode.END)
         label.set_tooltip_text(title)
         tab_box.pack_start(label, True, True, 0)
