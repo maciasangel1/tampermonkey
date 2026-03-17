@@ -1343,13 +1343,20 @@ class MainWindow(Gtk.ApplicationWindow):
             if state["attempts"] > 120:
                 vte_widget.disconnect(state["handler_id"])
                 return
-            # Read the last few rows of terminal output using a callback
-            # to avoid the deprecated GArray attributes parameter
+            # Read the last few rows of terminal output.
+            # Use get_text_range_format (VTE ≥ 0.72) to avoid the
+            # deprecated GArray attributes parameter; fall back to
+            # get_text_range on older versions.
             col, row = vte_widget.get_cursor_position()
             start_row = max(0, row - 3)
-            text = vte_widget.get_text_range_format(
-                Vte.Format.TEXT, start_row, 0, row, col
-            )
+            if hasattr(vte_widget, "get_text_range_format"):
+                text = vte_widget.get_text_range_format(
+                    Vte.Format.TEXT, start_row, 0, row, col
+                )
+            else:
+                text = vte_widget.get_text_range(
+                    start_row, 0, row, col, None
+                )
             if text and isinstance(text, tuple):
                 text = text[0]
             if isinstance(text, bytes):

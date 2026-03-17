@@ -19,11 +19,33 @@ class TestAppSettings:
         assert s.scrollback_lines == 10000
         assert s.show_sidebar is True
         assert s.confirm_close_tab is True
+        assert s.cursor_style == "block"
+        assert s.cursor_blink is True
+        assert s.tab_position == "left"
+        assert s.terminal_bell is True
+        assert s.bold_is_bright is True
+        assert s.copy_on_select is False
 
     def test_custom_values(self):
         s = AppSettings(font_size=14, show_sidebar=False)
         assert s.font_size == 14
         assert s.show_sidebar is False
+
+    def test_new_settings_custom(self):
+        s = AppSettings(
+            cursor_style="ibeam",
+            cursor_blink=False,
+            tab_position="top",
+            terminal_bell=False,
+            bold_is_bright=False,
+            copy_on_select=True,
+        )
+        assert s.cursor_style == "ibeam"
+        assert s.cursor_blink is False
+        assert s.tab_position == "top"
+        assert s.terminal_bell is False
+        assert s.bold_is_bright is False
+        assert s.copy_on_select is True
 
 
 class TestSSHSession:
@@ -112,6 +134,26 @@ class TestSettingsManager:
             mgr.add_session(SSHSession(name="c", host="c", folder="Prod"))
             folders = mgr.get_folders()
             assert folders == ["Dev", "Prod"]
+
+    def test_save_and_load_new_settings_fields(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mgr = SettingsManager(config_dir=Path(tmpdir))
+            mgr.settings.cursor_style = "underline"
+            mgr.settings.cursor_blink = False
+            mgr.settings.tab_position = "right"
+            mgr.settings.terminal_bell = False
+            mgr.settings.bold_is_bright = False
+            mgr.settings.copy_on_select = True
+            mgr.save()
+
+            mgr2 = SettingsManager(config_dir=Path(tmpdir))
+            mgr2.load()
+            assert mgr2.settings.cursor_style == "underline"
+            assert mgr2.settings.cursor_blink is False
+            assert mgr2.settings.tab_position == "right"
+            assert mgr2.settings.terminal_bell is False
+            assert mgr2.settings.bold_is_bright is False
+            assert mgr2.settings.copy_on_select is True
 
     def test_load_corrupted_settings(self):
         with tempfile.TemporaryDirectory() as tmpdir:
