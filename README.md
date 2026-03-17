@@ -82,12 +82,30 @@ sudo dnf install \
 
 ## Installation
 
-### Option 1: Install from source (pip)
+### Option 1: Quick Install (recommended for Fedora)
 
 ```bash
 git clone https://github.com/maciasangel1/tampermonkey.git
 cd tampermonkey
-pip install .
+chmod +x install.sh
+./install.sh
+```
+
+The `install.sh` script will automatically:
+1. Install all required system packages via `dnf`
+2. Install FedoraXTerm via `pip`
+3. Set up the desktop entry and application icon
+
+### Option 2: Manual install from source (pip)
+
+```bash
+# 1. Install system dependencies first
+sudo dnf install python3 python3-pip python3-gobject gtk3 vte291
+
+# 2. Clone and install
+git clone https://github.com/maciasangel1/tampermonkey.git
+cd tampermonkey
+pip install --user .
 ```
 
 Then run:
@@ -96,21 +114,35 @@ Then run:
 fedoraxterm
 ```
 
-### Option 2: Run without installing
+> **Note:** If `fedoraxterm` is not found after install, make sure `~/.local/bin`
+> is in your `PATH`:
+> ```bash
+> export PATH="$HOME/.local/bin:$PATH"
+> ```
+> Add the line above to your `~/.bashrc` to make it permanent.
+
+### Option 3: Run without installing
 
 ```bash
+# Install system dependencies first
+sudo dnf install python3 python3-pip python3-gobject gtk3 vte291 python3-paramiko
+
 git clone https://github.com/maciasangel1/tampermonkey.git
 cd tampermonkey
-python -m fedoraxterm
+python3 -m fedoraxterm
 ```
 
-### Option 3: Build and install RPM (Fedora)
+### Option 4: Build and install RPM (Fedora)
 
 ```bash
 # Install build tools
 sudo dnf install rpm-build python3-setuptools
 
-# Build the RPM
+# Clone the repository
+git clone https://github.com/maciasangel1/tampermonkey.git
+cd tampermonkey
+
+# Build the RPM (run from inside the repo directory)
 rpmbuild -ba fedoraxterm.spec
 
 # Install
@@ -119,11 +151,12 @@ sudo dnf install ~/rpmbuild/RPMS/noarch/fedoraxterm-1.0.0-1.*.noarch.rpm
 
 ### Desktop Integration
 
-To install the `.desktop` entry and icon system-wide:
+To manually install the `.desktop` entry and icon system-wide:
 
 ```bash
-sudo cp fedoraxterm/resources/fedoraxterm.desktop /usr/share/applications/
-sudo cp fedoraxterm/resources/fedoraxterm.svg /usr/share/icons/hicolor/scalable/apps/
+cd tampermonkey
+sudo install -Dm644 fedoraxterm/resources/fedoraxterm.desktop /usr/share/applications/fedoraxterm.desktop
+sudo install -Dm644 fedoraxterm/resources/fedoraxterm.svg /usr/share/icons/hicolor/scalable/apps/fedoraxterm.svg
 sudo gtk-update-icon-cache /usr/share/icons/hicolor/
 ```
 
@@ -134,11 +167,11 @@ sudo gtk-update-icon-cache /usr/share/icons/hicolor/
 ### Launching
 
 ```bash
-# Installed
+# If installed via pip
 fedoraxterm
 
-# From source
-python -m fedoraxterm
+# Or run directly from the repository
+python3 -m fedoraxterm
 ```
 
 ### Quick SSH Connection
@@ -243,7 +276,7 @@ Settings are stored in XDG-compliant locations:
 
 ```bash
 pip install pytest
-pytest tests/
+python3 -m pytest tests/
 ```
 
 ---
@@ -275,6 +308,65 @@ This project is licensed under the [GNU General Public License v3.0](COPYING).
 | Unix commands | ✅ (Cygwin) | N/A (native) |
 | Password manager | ✅ | Planned |
 | Embedded servers | ✅ | Planned |
+
+---
+
+## Troubleshooting
+
+### `pip install .` fails with "Neither 'setup.py' nor 'pyproject.toml' found"
+
+Make sure you are running the command from inside the cloned repository directory:
+
+```bash
+cd tampermonkey
+pip install --user .
+```
+
+If pip is very old, upgrade it first:
+
+```bash
+pip install --upgrade pip
+```
+
+### `fedoraxterm: command not found`
+
+The `fedoraxterm` binary is installed to `~/.local/bin/` when using `pip install --user`.
+Add it to your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Add that line to your `~/.bashrc` to make it permanent:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Alternatively, run directly without installing:
+
+```bash
+cd tampermonkey
+python3 -m fedoraxterm
+```
+
+### RPM build fails with "failed to stat fedoraxterm.spec: No such file or directory"
+
+Run `rpmbuild` from inside the repository directory:
+
+```bash
+cd tampermonkey
+rpmbuild -ba fedoraxterm.spec
+```
+
+### Missing GTK/VTE libraries
+
+If you see errors about missing Gtk or Vte namespaces, install the system libraries:
+
+```bash
+sudo dnf install python3-gobject gtk3 vte291
+```
 
 ---
 
