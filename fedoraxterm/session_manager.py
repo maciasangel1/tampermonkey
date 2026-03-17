@@ -60,6 +60,7 @@ class SessionSidebar(Gtk.Box):
 
         text_renderer = Gtk.CellRendererText()
         text_renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
+        text_renderer.set_property("xalign", 0.0)
         col.pack_start(text_renderer, True)
         col.add_attribute(text_renderer, "text", 1)
         self._tree.append_column(col)
@@ -69,7 +70,7 @@ class SessionSidebar(Gtk.Box):
         self._tree.connect("button-press-event", self._on_button_press)
 
         scroll = Gtk.ScrolledWindow()
-        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroll.add(self._tree)
         self.pack_start(scroll, True, True, 0)
 

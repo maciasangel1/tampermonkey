@@ -12,7 +12,7 @@ from typing import Optional
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk, Pango
 
 try:
     import paramiko
@@ -86,6 +86,7 @@ class SFTPBrowser(Gtk.Box):
         self._tree.append_column(col_icon)
 
         renderer_name = Gtk.CellRendererText()
+        renderer_name.set_property("ellipsize", Pango.EllipsizeMode.END)
         col_name = Gtk.TreeViewColumn("Name", renderer_name, text=self.COL_NAME)
         col_name.set_expand(True)
         col_name.set_sort_column_id(self.COL_NAME)

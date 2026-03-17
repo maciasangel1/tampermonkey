@@ -150,14 +150,14 @@ toolbar separator {
     min-width: 1px;
 }
 
-/* ---------- Notebook tabs ---------- */
+/* ---------- Notebook tabs (left-positioned, vertical) ---------- */
 notebook {
     background-color: #1c1c1e;
 }
 notebook header {
     background-color: #2c2c2e;
-    border-bottom: 1px solid #3a3a3c;
-    padding: 0 4px;
+    border-right: 1px solid #3a3a3c;
+    padding: 4px 0;
 }
 notebook header tabs {
     background: transparent;
@@ -165,17 +165,17 @@ notebook header tabs {
 notebook header tab {
     background-color: transparent;
     border: 1px solid transparent;
-    border-radius: 6px 6px 0 0;
-    padding: 2px 8px;
-    margin: 1px 1px 0 1px;
+    border-radius: 6px 0 0 6px;
+    padding: 6px 8px;
+    margin: 1px 0 1px 1px;
     color: #98989d;
     min-height: 24px;
-    min-width: 80px;
+    min-width: 30px;
 }
 notebook header tab:checked {
     background-color: #1c1c1e;
     border-color: #3a3a3c;
-    border-bottom-color: #1c1c1e;
+    border-right-color: #1c1c1e;
     color: #f5f5f7;
 }
 notebook header tab:hover:not(:checked) {
@@ -184,7 +184,7 @@ notebook header tab:hover:not(:checked) {
 }
 notebook header tab label {
     font-size: 11px;
-    padding: 0 2px;
+    padding: 2px 0;
 }
 notebook header tab button {
     background: transparent;
@@ -431,6 +431,15 @@ class MainWindow(Gtk.ApplicationWindow):
         self._notebook.set_scrollable(True)
         self._notebook.popup_enable()
         self._notebook.connect("switch-page", self._on_tab_switched)
+        pos_map = {
+            "left": Gtk.PositionType.LEFT,
+            "top": Gtk.PositionType.TOP,
+            "bottom": Gtk.PositionType.BOTTOM,
+            "right": Gtk.PositionType.RIGHT,
+        }
+        self._notebook.set_tab_pos(
+            pos_map.get(self._settings_mgr.settings.tab_position, Gtk.PositionType.LEFT)
+        )
         self._hpaned.pack2(self._notebook, resize=True, shrink=False)
 
         # Multi-exec bar at the bottom
@@ -572,12 +581,9 @@ class MainWindow(Gtk.ApplicationWindow):
             "emblem-system-symbolic", Gtk.IconSize.BUTTON
         )
         settings_btn.set_image(gear_icon)
-        settings_btn.set_tooltip_text("About")
+        settings_btn.set_tooltip_text("Settings")
         settings_btn.set_relief(Gtk.ReliefStyle.NONE)
-        settings_btn.connect(
-            "clicked",
-            lambda _b: self.get_application().activate_action("about", None),
-        )
+        settings_btn.connect("clicked", lambda _b: self._show_settings_dialog())
         hb.pack_end(settings_btn)
 
     def _build_menubar(self) -> Gtk.MenuBar:
@@ -616,6 +622,7 @@ class MainWindow(Gtk.ApplicationWindow):
             ("SSH Tunnel Manager…", lambda _i: self._show_tunnel_dialog()),
             ("Macro Manager…", lambda _i: self._show_macro_dialog()),
             ("Text Editor…", lambda _i: self._show_text_editor()),
+            ("Settings…", lambda _i: self._show_settings_dialog()),
         ]:
             mi = Gtk.MenuItem(label=label)
             mi.connect("activate", cb)
@@ -731,8 +738,8 @@ class MainWindow(Gtk.ApplicationWindow):
         """Add a new terminal tab with a close button."""
         self._tab_counter += 1
 
-        # Tab label with close button — compact height, wide enough for hostnames
-        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        # Tab label with close button — vertical layout for left-side tabs
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
 
         # Connection-type icon
         if title.startswith("SSH") or "@" in title:
@@ -768,7 +775,13 @@ class MainWindow(Gtk.ApplicationWindow):
         tab_box.pack_end(close_btn, False, False, 0)
         tab_box.show_all()
 
-        idx = self._notebook.append_page(terminal, tab_box)
+        # Wrap in EventBox for right-click context menu
+        tab_box_eventbox = Gtk.EventBox()
+        tab_box_eventbox.add(tab_box)
+        tab_box_eventbox.show_all()
+        tab_box_eventbox.connect("button-press-event", self._on_tab_right_click, terminal)
+
+        idx = self._notebook.append_page(terminal, tab_box_eventbox)
         self._notebook.set_tab_reorderable(terminal, True)
         terminal.show_all()
         self._notebook.set_current_page(idx)
@@ -784,6 +797,146 @@ class MainWindow(Gtk.ApplicationWindow):
         """Update the window title when tabs change."""
         if hasattr(page, "get_title"):
             self.set_title(f"{page.get_title()} — {__app_name__}")
+
+    def _on_tab_right_click(self, widget, event, terminal):
+        """Show context menu on right-click of a tab."""
+        if event.button != 3:
+            return False
+
+        menu = Gtk.Menu()
+
+        # Close tab
+        close_item = Gtk.MenuItem(label="Close")
+        close_item.connect("activate", lambda _i: self._on_close_tab(None, terminal))
+        menu.append(close_item)
+
+        # Close other tabs
+        close_others = Gtk.MenuItem(label="Close Others")
+        close_others.connect("activate", lambda _i: self._close_other_tabs(terminal))
+        menu.append(close_others)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Duplicate tab
+        dup_item = Gtk.MenuItem(label="Duplicate Tab")
+        dup_item.connect("activate", lambda _i: self.add_local_terminal_tab())
+        menu.append(dup_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Split horizontal
+        split_h = Gtk.MenuItem(label="Split Horizontal")
+        split_h.connect("activate", lambda _i: self._split_terminal(terminal, Gtk.Orientation.HORIZONTAL))
+        menu.append(split_h)
+
+        # Split vertical
+        split_v = Gtk.MenuItem(label="Split Vertical")
+        split_v.connect("activate", lambda _i: self._split_terminal(terminal, Gtk.Orientation.VERTICAL))
+        menu.append(split_v)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Copy / Paste
+        copy_item = Gtk.MenuItem(label="Copy")
+        copy_item.connect("activate", lambda _i: terminal.copy_clipboard())
+        menu.append(copy_item)
+
+        paste_item = Gtk.MenuItem(label="Paste")
+        paste_item.connect("activate", lambda _i: terminal.paste_clipboard())
+        menu.append(paste_item)
+
+        menu.show_all()
+        menu.popup_at_pointer(event)
+        return True
+
+    def _close_other_tabs(self, keep_terminal):
+        """Close all tabs except the specified one."""
+        pages_to_remove = []
+        for i in range(self._notebook.get_n_pages()):
+            page = self._notebook.get_nth_page(i)
+            if page is not keep_terminal:
+                pages_to_remove.append(page)
+        for page in pages_to_remove:
+            idx = self._notebook.page_num(page)
+            if idx >= 0:
+                self._notebook.remove_page(idx)
+        self._update_tab_count()
+
+    def _add_tab_at(self, widget, title: str, position: int = -1):
+        """Insert a widget as a tab at a specific position (or end)."""
+        self._tab_counter += 1
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+
+        tab_icon = Gtk.Image.new_from_icon_name(
+            "view-dual-symbolic", Gtk.IconSize.MENU
+        )
+        tab_box.pack_start(tab_icon, False, False, 0)
+
+        label = Gtk.Label(label=title)
+        label.set_width_chars(_TAB_LABEL_MIN_CHARS)
+        label.set_max_width_chars(_TAB_LABEL_MAX_CHARS)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        label.set_tooltip_text(title)
+        tab_box.pack_start(label, True, True, 0)
+
+        close_btn = Gtk.Button()
+        close_icon = Gtk.Image.new_from_icon_name(
+            "window-close-symbolic", Gtk.IconSize.MENU
+        )
+        close_btn.set_image(close_icon)
+        close_btn.set_relief(Gtk.ReliefStyle.NONE)
+        close_btn.connect("clicked", self._on_close_tab, widget)
+        tab_box.pack_end(close_btn, False, False, 0)
+
+        tab_eventbox = Gtk.EventBox()
+        tab_eventbox.add(tab_box)
+        tab_eventbox.show_all()
+
+        if position >= 0:
+            idx = self._notebook.insert_page(widget, tab_eventbox, position)
+        else:
+            idx = self._notebook.append_page(widget, tab_eventbox)
+        self._notebook.set_tab_reorderable(widget, True)
+        widget.show_all()
+        self._notebook.set_current_page(idx)
+        self._update_tab_count()
+
+    def _split_terminal(self, terminal, orientation):
+        """Split the current tab by adding a new terminal alongside."""
+        # Find the notebook page containing this terminal
+        idx = self._notebook.page_num(terminal)
+        page_widget = terminal
+        if idx < 0:
+            # Terminal might be nested inside a Paned from a previous split
+            parent = terminal.get_parent()
+            while parent is not None and parent != self._notebook:
+                test_idx = self._notebook.page_num(parent)
+                if test_idx >= 0:
+                    idx = test_idx
+                    page_widget = parent
+                    break
+                parent = parent.get_parent()
+        if idx < 0:
+            return
+
+        # Create new terminal
+        settings = self._settings_mgr.settings
+        new_terminal = TerminalWidget(settings=settings)
+
+        # Create split pane
+        paned = Gtk.Paned(orientation=orientation)
+
+        # Remove page from notebook
+        self._notebook.remove_page(idx)
+
+        paned.pack1(page_widget, resize=True, shrink=False)
+        paned.pack2(new_terminal, resize=True, shrink=False)
+        page_widget.show_all()
+        new_terminal.show_all()
+        paned.show_all()
+
+        # Re-insert at same position
+        self._add_tab_at(paned, "Split View", idx)
 
     # ======================================================================
     # Session-type dialogs
@@ -889,6 +1042,184 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_text_editor(self, filepath: Optional[str] = None):
         editor = TextEditorDialog(parent=self, filepath=filepath)
         editor.show_all()
+
+    def _show_settings_dialog(self):
+        """Show the Tabby-inspired application settings dialog."""
+        dialog = Gtk.Dialog(
+            title="Settings",
+            transient_for=self,
+            modal=True,
+        )
+        dialog.set_default_size(600, 500)
+        dialog.add_button("_Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("_Apply", Gtk.ResponseType.OK)
+
+        content = dialog.get_content_area()
+        notebook = Gtk.Notebook()
+        notebook.set_tab_pos(Gtk.PositionType.LEFT)
+        content.pack_start(notebook, True, True, 0)
+
+        s = self._settings_mgr.settings
+
+        # --- Terminal Tab ---
+        term_grid = Gtk.Grid(column_spacing=12, row_spacing=8)
+        term_grid.set_margin_start(16)
+        term_grid.set_margin_end(16)
+        term_grid.set_margin_top(16)
+        term_grid.set_margin_bottom(16)
+
+        row = 0
+
+        def add_row(grid, label_text, widget, r):
+            lbl = Gtk.Label(label=label_text)
+            lbl.set_xalign(1)
+            lbl.set_halign(Gtk.Align.END)
+            grid.attach(lbl, 0, r, 1, 1)
+            widget.set_hexpand(True)
+            grid.attach(widget, 1, r, 1, 1)
+            return r + 1
+
+        # Font family
+        font_entry = Gtk.Entry()
+        font_entry.set_text(s.font_family)
+        row = add_row(term_grid, "Font Family:", font_entry, row)
+
+        # Font size
+        font_size_spin = Gtk.SpinButton.new_with_range(6, 72, 1)
+        font_size_spin.set_value(s.font_size)
+        row = add_row(term_grid, "Font Size:", font_size_spin, row)
+
+        # Scrollback lines
+        scroll_spin = Gtk.SpinButton.new_with_range(100, 1000000, 100)
+        scroll_spin.set_value(s.scrollback_lines)
+        row = add_row(term_grid, "Scrollback Lines:", scroll_spin, row)
+
+        # Cursor style
+        cursor_combo = Gtk.ComboBoxText()
+        for cid, clabel in [("block", "Block"), ("ibeam", "I-Beam"), ("underline", "Underline")]:
+            cursor_combo.append(cid, clabel)
+        cursor_combo.set_active_id(s.cursor_style)
+        row = add_row(term_grid, "Cursor Style:", cursor_combo, row)
+
+        # Cursor blink
+        cursor_blink_check = Gtk.CheckButton(label="Enable cursor blinking")
+        cursor_blink_check.set_active(s.cursor_blink)
+        row = add_row(term_grid, "Cursor Blink:", cursor_blink_check, row)
+
+        # Terminal bell
+        bell_check = Gtk.CheckButton(label="Enable terminal bell")
+        bell_check.set_active(s.terminal_bell)
+        row = add_row(term_grid, "Terminal Bell:", bell_check, row)
+
+        # Bold is bright
+        bold_check = Gtk.CheckButton(label="Bold text appears bright")
+        bold_check.set_active(s.bold_is_bright)
+        row = add_row(term_grid, "Bold is Bright:", bold_check, row)
+
+        # Copy on select
+        copy_sel_check = Gtk.CheckButton(label="Copy text on selection")
+        copy_sel_check.set_active(s.copy_on_select)
+        row = add_row(term_grid, "Copy on Select:", copy_sel_check, row)
+
+        notebook.append_page(term_grid, Gtk.Label(label="Terminal"))
+
+        # --- Appearance Tab ---
+        appear_grid = Gtk.Grid(column_spacing=12, row_spacing=8)
+        appear_grid.set_margin_start(16)
+        appear_grid.set_margin_end(16)
+        appear_grid.set_margin_top(16)
+        appear_grid.set_margin_bottom(16)
+
+        row = 0
+
+        # Background color
+        bg_entry = Gtk.Entry()
+        bg_entry.set_text(s.terminal_bg_color)
+        row = add_row(appear_grid, "Background Color:", bg_entry, row)
+
+        # Foreground color
+        fg_entry = Gtk.Entry()
+        fg_entry.set_text(s.terminal_fg_color)
+        row = add_row(appear_grid, "Foreground Color:", fg_entry, row)
+
+        # Window width
+        width_spin = Gtk.SpinButton.new_with_range(400, 4000, 10)
+        width_spin.set_value(s.window_width)
+        row = add_row(appear_grid, "Window Width:", width_spin, row)
+
+        # Window height
+        height_spin = Gtk.SpinButton.new_with_range(300, 3000, 10)
+        height_spin.set_value(s.window_height)
+        row = add_row(appear_grid, "Window Height:", height_spin, row)
+
+        # Tab position
+        tab_pos_combo = Gtk.ComboBoxText()
+        for pid, plabel in [("left", "Left"), ("top", "Top"), ("bottom", "Bottom"), ("right", "Right")]:
+            tab_pos_combo.append(pid, plabel)
+        tab_pos_combo.set_active_id(s.tab_position)
+        row = add_row(appear_grid, "Tab Position:", tab_pos_combo, row)
+
+        notebook.append_page(appear_grid, Gtk.Label(label="Appearance"))
+
+        # --- General Tab ---
+        general_grid = Gtk.Grid(column_spacing=12, row_spacing=8)
+        general_grid.set_margin_start(16)
+        general_grid.set_margin_end(16)
+        general_grid.set_margin_top(16)
+        general_grid.set_margin_bottom(16)
+
+        row = 0
+
+        # Show sidebar
+        sidebar_check = Gtk.CheckButton(label="Show sidebar on startup")
+        sidebar_check.set_active(s.show_sidebar)
+        row = add_row(general_grid, "Sidebar:", sidebar_check, row)
+
+        # Confirm close
+        confirm_check = Gtk.CheckButton(label="Confirm before closing tabs")
+        confirm_check.set_active(s.confirm_close_tab)
+        row = add_row(general_grid, "Confirm Close:", confirm_check, row)
+
+        notebook.append_page(general_grid, Gtk.Label(label="General"))
+
+        dialog.show_all()
+
+        if dialog.run() == Gtk.ResponseType.OK:
+            # Apply settings
+            s.font_family = font_entry.get_text().strip() or "Monospace"
+            s.font_size = int(font_size_spin.get_value())
+            s.scrollback_lines = int(scroll_spin.get_value())
+            s.cursor_style = cursor_combo.get_active_id() or "block"
+            s.cursor_blink = cursor_blink_check.get_active()
+            s.terminal_bell = bell_check.get_active()
+            s.bold_is_bright = bold_check.get_active()
+            s.copy_on_select = copy_sel_check.get_active()
+            s.terminal_bg_color = bg_entry.get_text().strip() or "#1e1e2e"
+            s.terminal_fg_color = fg_entry.get_text().strip() or "#cdd6f4"
+            s.window_width = int(width_spin.get_value())
+            s.window_height = int(height_spin.get_value())
+            s.tab_position = tab_pos_combo.get_active_id() or "left"
+            s.show_sidebar = sidebar_check.get_active()
+            s.confirm_close_tab = confirm_check.get_active()
+
+            self._settings_mgr.save()
+            self._apply_tab_position()
+            self._push_status("Settings saved")
+
+        dialog.destroy()
+
+    def _apply_tab_position(self):
+        """Apply the tab position setting to the notebook."""
+        pos_map = {
+            "left": Gtk.PositionType.LEFT,
+            "top": Gtk.PositionType.TOP,
+            "bottom": Gtk.PositionType.BOTTOM,
+            "right": Gtk.PositionType.RIGHT,
+        }
+        pos = pos_map.get(
+            self._settings_mgr.settings.tab_position, Gtk.PositionType.LEFT
+        )
+        self._notebook.set_tab_pos(pos)
 
     # ======================================================================
     # View toggles
@@ -1008,21 +1339,28 @@ class MainWindow(Gtk.ApplicationWindow):
 
         def _on_contents_changed(vte_widget):
             state["attempts"] += 1
-            # Give up after ~60 checks (~6 s at the default signal rate)
-            if state["attempts"] > 60:
+            # Give up after ~120 checks (~12 s at the default signal rate)
+            if state["attempts"] > 120:
                 vte_widget.disconnect(state["handler_id"])
                 return
-            # Read the last few rows of terminal output
+            # Read the last few rows of terminal output using a callback
+            # to avoid the deprecated GArray attributes parameter
             col, row = vte_widget.get_cursor_position()
             start_row = max(0, row - 3)
-            text = vte_widget.get_text_range(
-                start_row, 0, row, col, None
+            text = vte_widget.get_text_range_format(
+                Vte.Format.TEXT, start_row, 0, row, col
             )
             if text and isinstance(text, tuple):
                 text = text[0]
-            if text and "password" in text.lower():
-                vte_widget.feed_child((password + "\n").encode("utf-8"))
-                vte_widget.disconnect(state["handler_id"])
+            if isinstance(text, bytes):
+                text = text.decode("utf-8", errors="replace")
+            if text:
+                lower = text.lower()
+                if "password" in lower or "passphrase" in lower:
+                    vte_widget.feed_child(
+                        (password + "\n").encode("utf-8")
+                    )
+                    vte_widget.disconnect(state["handler_id"])
 
         state["handler_id"] = terminal.vte.connect(
             "contents-changed", _on_contents_changed

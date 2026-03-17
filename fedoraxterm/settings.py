@@ -56,6 +56,12 @@ class AppSettings:
     confirm_close_tab: bool = True
     terminal_bg_color: str = "#1e1e2e"
     terminal_fg_color: str = "#cdd6f4"
+    cursor_style: str = "block"        # "block", "ibeam", "underline"
+    cursor_blink: bool = True
+    tab_position: str = "left"         # "left", "top", "bottom", "right"
+    terminal_bell: bool = True
+    bold_is_bright: bool = True
+    copy_on_select: bool = False
 
 
 class SettingsManager:
