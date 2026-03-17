@@ -220,7 +220,7 @@ notebook header tab button:hover {
 /* ---------- SFTP pane ---------- */
 .sftp-frame {
     background-color: #1c1c1e;
-    border-left: 1px solid #3a3a3c;
+    border-top: 1px solid #3a3a3c;
 }
 
 /* ---------- Status bar ---------- */
@@ -400,39 +400,38 @@ class MainWindow(Gtk.ApplicationWindow):
         # Toolbar
         main_vbox.pack_start(self._build_toolbar(), False, False, 0)
 
-        # Horizontal paned: sidebar | center + optional SFTP
+        # Horizontal paned: left sidebar+SFTP | center terminal
         self._hpaned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         main_vbox.pack_start(self._hpaned, True, True, 0)
 
-        # Left sidebar
+        # Left column: sessions sidebar on top, SFTP browser below
+        self._left_vpaned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
+        self._sidebar_frame = Gtk.Frame()
+        self._sidebar_frame.get_style_context().add_class("sidebar-frame")
+
         self._sidebar = SessionSidebar(
             self._settings_mgr, on_connect_callback=self._on_session_connect
         )
-        sidebar_frame = Gtk.Frame()
-        sidebar_frame.get_style_context().add_class("sidebar-frame")
-        sidebar_frame.add(self._sidebar)
-        self._hpaned.pack1(sidebar_frame, resize=False, shrink=True)
-        self._hpaned.set_position(240)
+        self._sidebar_frame.add(self._sidebar)
+        self._left_vpaned.pack1(self._sidebar_frame, resize=True, shrink=False)
 
-        # Right area: terminal notebook (SFTP pane hidden by default)
-        self._right_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        self._hpaned.pack2(self._right_paned, resize=True, shrink=False)
-
-        # Terminal notebook
-        self._notebook = Gtk.Notebook()
-        self._notebook.set_scrollable(True)
-        self._notebook.popup_enable()
-        self._notebook.connect("switch-page", self._on_tab_switched)
-        self._right_paned.pack1(self._notebook, resize=True, shrink=True)
-
-        # SFTP browser (right, hidden by default — shown on SSH connect)
+        # SFTP browser (below sessions, hidden by default)
         self._sftp_browser = SFTPBrowser()
         self._sftp_frame = Gtk.Frame()
         self._sftp_frame.get_style_context().add_class("sftp-frame")
         self._sftp_frame.add(self._sftp_browser)
-        self._right_paned.pack2(self._sftp_frame, resize=False, shrink=True)
-        self._right_paned.set_position(800)
+        self._left_vpaned.pack2(self._sftp_frame, resize=True, shrink=True)
         self._sftp_visible = False
+
+        self._hpaned.pack1(self._left_vpaned, resize=False, shrink=True)
+        self._hpaned.set_position(260)
+
+        # Terminal notebook (right / centre area)
+        self._notebook = Gtk.Notebook()
+        self._notebook.set_scrollable(True)
+        self._notebook.popup_enable()
+        self._notebook.connect("switch-page", self._on_tab_switched)
+        self._hpaned.pack2(self._notebook, resize=True, shrink=False)
 
         # Multi-exec bar at the bottom
         self._multi_exec = MultiExecBar(
@@ -469,7 +468,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Honour show_sidebar setting
         if not self._settings_mgr.settings.show_sidebar:
-            sidebar_frame.hide()
+            self._sidebar_frame.hide()
 
     # ======================================================================
     # Public API
@@ -494,6 +493,10 @@ class MainWindow(Gtk.ApplicationWindow):
         terminal = TerminalWidget(settings=settings, ssh_command=cmd)
         label = session.display_label()
         self._add_tab(terminal, label)
+
+        # Auto-enter saved password when the SSH prompt appears
+        if session.auth_method == "password" and session.password:
+            self._auto_enter_password(terminal, session.password)
 
         # Auto-open SFTP browser for SSH sessions
         self._sftp_browser.disconnect()
@@ -892,11 +895,10 @@ class MainWindow(Gtk.ApplicationWindow):
     # ======================================================================
 
     def _on_toggle_sidebar(self, item):
-        parent = self._hpaned.get_child1()
         if item.get_active():
-            parent.show()
+            self._sidebar_frame.show()
         else:
-            parent.hide()
+            self._sidebar_frame.hide()
         self._settings_mgr.settings.show_sidebar = item.get_active()
 
     def _on_toggle_multi(self, item):
@@ -914,11 +916,12 @@ class MainWindow(Gtk.ApplicationWindow):
             self._hide_sftp_pane()
 
     def _show_sftp_pane(self):
-        """Show the SFTP file browser panel."""
+        """Show the SFTP file browser panel below the sessions sidebar."""
         self._sftp_frame.show_all()
         self._sftp_visible = True
-        alloc = self.get_allocation()
-        self._right_paned.set_position(alloc.width - 520)
+        # Position the vertical split so sessions and SFTP each get half
+        alloc = self._left_vpaned.get_allocation()
+        self._left_vpaned.set_position(alloc.height // 2)
         self._toggle_sftp.set_active(True)
 
     def _hide_sftp_pane(self):
@@ -993,6 +996,37 @@ class MainWindow(Gtk.ApplicationWindow):
     # ======================================================================
     # Misc
     # ======================================================================
+
+    def _auto_enter_password(self, terminal: TerminalWidget, password: str):
+        """Watch the terminal for a password prompt and auto-type the password.
+
+        Uses a ``contents-changed`` signal on the VTE widget.  Once the
+        prompt is detected (or after a maximum number of checks) the handler
+        disconnects itself to avoid interfering with the session.
+        """
+        state = {"handler_id": None, "attempts": 0}
+
+        def _on_contents_changed(vte_widget):
+            state["attempts"] += 1
+            # Give up after ~60 checks (~6 s at the default signal rate)
+            if state["attempts"] > 60:
+                vte_widget.disconnect(state["handler_id"])
+                return
+            # Read the last few rows of terminal output
+            col, row = vte_widget.get_cursor_position()
+            start_row = max(0, row - 3)
+            text = vte_widget.get_text_range(
+                start_row, 0, row, col, None
+            )
+            if text and isinstance(text, tuple):
+                text = text[0]
+            if text and "password" in text.lower():
+                vte_widget.feed_child((password + "\n").encode("utf-8"))
+                vte_widget.disconnect(state["handler_id"])
+
+        state["handler_id"] = terminal.vte.connect(
+            "contents-changed", _on_contents_changed
+        )
 
     def _apply_window_settings(self):
         s = self._settings_mgr.settings

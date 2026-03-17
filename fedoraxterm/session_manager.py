@@ -7,7 +7,7 @@ provides quick-connect / edit / delete actions.
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Pango
 
 from fedoraxterm.settings import SettingsManager, SSHSession
 
@@ -53,14 +53,17 @@ class SessionSidebar(Gtk.Box):
         self._tree.set_activate_on_single_click(False)
 
         col = Gtk.TreeViewColumn()
+        col.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
         icon_renderer = Gtk.CellRendererPixbuf()
         col.pack_start(icon_renderer, False)
         col.add_attribute(icon_renderer, "icon-name", 0)
 
         text_renderer = Gtk.CellRendererText()
+        text_renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
         col.pack_start(text_renderer, True)
         col.add_attribute(text_renderer, "text", 1)
         self._tree.append_column(col)
+        self._tree.set_fixed_height_mode(True)
 
         self._tree.connect("row-activated", self._on_row_activated)
         self._tree.connect("button-press-event", self._on_button_press)
