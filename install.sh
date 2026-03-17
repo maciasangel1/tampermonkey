@@ -22,13 +22,17 @@ warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 # --- Ensure we're in the repository root ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+#!/bin/bash
 
-if [ ! -f "pyproject.toml" ]; then
-    error "pyproject.toml not found. Please run this script from the repository root."
-    error "  cd /path/to/tampermonkey && ./install.sh"
-    exit 1
+# Change to the repository's root directory
+cd $(git rev-parse --show-toplevel)
+
+# Check if the pyproject.toml file is present
+if [ -f "pyproject.toml" ]; then
+  echo "pyproject.toml found. Proceeding with installation."
+else
+  echo "pyproject.toml not found. Please run this script from the repository root."
+  exit 1
 fi
 
 info "=== FedoraXTerm Installer ==="
