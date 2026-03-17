@@ -31,6 +31,7 @@ class SSHSession:
     host: str
     port: int = 22
     username: str = ""
+    password: str = ""
     auth_method: str = "password"  # "password" or "key"
     private_key_path: str = ""
     folder: str = "Default"
@@ -127,6 +128,16 @@ class SettingsManager:
     def add_session(self, session: SSHSession):
         """Add a new session and persist."""
         self.sessions.append(session)
+        self._save_sessions()
+
+    def update_session(self, name: str, **kwargs):
+        """Update fields on an existing session by name and persist."""
+        session = self.get_session(name)
+        if session is None:
+            return
+        for key, value in kwargs.items():
+            if hasattr(session, key):
+                setattr(session, key, value)
         self._save_sessions()
 
     def remove_session(self, name: str):

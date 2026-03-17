@@ -23,7 +23,7 @@ class SessionSidebar(Gtk.Box):
                 user wants to open a session.
         """
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        self.set_size_request(220, -1)
+        self.set_size_request(100, -1)
 
         self._sm = settings_manager
         self._on_connect = on_connect_callback
@@ -140,6 +140,12 @@ class SessionSidebar(Gtk.Box):
         connect_item.connect("activate", lambda _i: self._connect_session(session_name))
         menu.append(connect_item)
 
+        edit_item = Gtk.MenuItem(label="Edit Credentials…")
+        edit_item.connect("activate", lambda _i: self._edit_credentials(session_name))
+        menu.append(edit_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
         delete_item = Gtk.MenuItem(label="Delete")
         delete_item.connect("activate", lambda _i: self._delete_session(session_name))
         menu.append(delete_item)
@@ -155,6 +161,24 @@ class SessionSidebar(Gtk.Box):
     def _delete_session(self, session_name: str):
         self._sm.remove_session(session_name)
         self.refresh()
+
+    def _edit_credentials(self, session_name: str):
+        """Open a dialog to edit credentials for a saved session."""
+        session = self._sm.get_session(session_name)
+        if not session:
+            return
+        dialog = _CredentialsDialog(self.get_toplevel(), session)
+        if dialog.run() == Gtk.ResponseType.OK:
+            creds = dialog.get_credentials()
+            self._sm.update_session(
+                session_name,
+                username=creds["username"],
+                password=creds["password"],
+                auth_method=creds["auth_method"],
+                private_key_path=creds["private_key_path"],
+            )
+            self.refresh()
+        dialog.destroy()
 
     def _on_add_clicked(self, _btn):
         """Open the new-session dialog."""
@@ -225,6 +249,10 @@ class _SSHSessionDialog(Gtk.Dialog):
         self._port_spin.set_value(22)
         self._user_entry = add_field("Username:", Gtk.Entry())
 
+        self._pass_entry = add_field("Password:", Gtk.Entry())
+        self._pass_entry.set_visibility(False)
+        self._pass_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+
         self._auth_combo = Gtk.ComboBoxText()
         self._auth_combo.append("password", "Password")
         self._auth_combo.append("key", "SSH Key")
@@ -245,6 +273,7 @@ class _SSHSessionDialog(Gtk.Dialog):
             self._host_entry.set_text(session.host)
             self._port_spin.set_value(session.port)
             self._user_entry.set_text(session.username)
+            self._pass_entry.set_text(session.password)
             self._auth_combo.set_active_id(session.auth_method)
             self._folder_entry.set_text(session.folder)
 
@@ -263,7 +292,77 @@ class _SSHSessionDialog(Gtk.Dialog):
             host=host,
             port=int(self._port_spin.get_value()),
             username=self._user_entry.get_text().strip(),
+            password=self._pass_entry.get_text(),
             auth_method=self._auth_combo.get_active_id() or "password",
             private_key_path=key_path,
             folder=self._folder_entry.get_text().strip() or "Default",
         )
+
+
+# ---------------------------------------------------------------------------
+# Credentials editing dialog
+# ---------------------------------------------------------------------------
+
+
+class _CredentialsDialog(Gtk.Dialog):
+    """Dialog for editing credentials of an existing SSH session."""
+
+    def __init__(self, parent, session: SSHSession):
+        super().__init__(
+            title=f"Edit Credentials — {session.name}",
+            transient_for=parent,
+            modal=True,
+        )
+        self.add_button("_Cancel", Gtk.ResponseType.CANCEL)
+        self.add_button("_Save", Gtk.ResponseType.OK)
+
+        grid = Gtk.Grid(column_spacing=8, row_spacing=8)
+        grid.set_margin_start(12)
+        grid.set_margin_end(12)
+        grid.set_margin_top(12)
+        grid.set_margin_bottom(12)
+
+        row = 0
+
+        def add_field(label_text, widget):
+            nonlocal row
+            lbl = Gtk.Label(label=label_text)
+            lbl.set_xalign(1)
+            grid.attach(lbl, 0, row, 1, 1)
+            widget.set_hexpand(True)
+            grid.attach(widget, 1, row, 1, 1)
+            row += 1
+            return widget
+
+        self._user_entry = add_field("Username:", Gtk.Entry())
+        self._user_entry.set_text(session.username)
+
+        self._pass_entry = add_field("Password:", Gtk.Entry())
+        self._pass_entry.set_visibility(False)
+        self._pass_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+        self._pass_entry.set_text(session.password)
+
+        self._auth_combo = Gtk.ComboBoxText()
+        self._auth_combo.append("password", "Password")
+        self._auth_combo.append("key", "SSH Key")
+        self._auth_combo.set_active_id(session.auth_method)
+        add_field("Auth Method:", self._auth_combo)
+
+        self._key_chooser = Gtk.FileChooserButton(
+            title="Select private key", action=Gtk.FileChooserAction.OPEN
+        )
+        if session.private_key_path:
+            self._key_chooser.set_filename(session.private_key_path)
+        add_field("Key File:", self._key_chooser)
+
+        self.get_content_area().add(grid)
+        self.show_all()
+
+    def get_credentials(self) -> dict:
+        """Return a dict with the updated credential fields."""
+        return {
+            "username": self._user_entry.get_text().strip(),
+            "password": self._pass_entry.get_text(),
+            "auth_method": self._auth_combo.get_active_id() or "password",
+            "private_key_path": self._key_chooser.get_filename() or "",
+        }

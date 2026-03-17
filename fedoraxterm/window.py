@@ -165,11 +165,12 @@ notebook header tabs {
 notebook header tab {
     background-color: transparent;
     border: 1px solid transparent;
-    border-radius: 8px 8px 0 0;
-    padding: 6px 12px;
-    margin: 2px 1px 0 1px;
+    border-radius: 6px 6px 0 0;
+    padding: 2px 8px;
+    margin: 1px 1px 0 1px;
     color: #98989d;
-    min-width: 100px;
+    min-height: 24px;
+    min-width: 80px;
 }
 notebook header tab:checked {
     background-color: #1c1c1e;
@@ -182,16 +183,16 @@ notebook header tab:hover:not(:checked) {
     color: #e5e5ea;
 }
 notebook header tab label {
-    font-size: 12px;
-    padding: 0 4px;
+    font-size: 11px;
+    padding: 0 2px;
 }
 notebook header tab button {
     background: transparent;
     border: none;
     border-radius: 4px;
-    padding: 1px;
-    min-height: 16px;
-    min-width: 16px;
+    padding: 0px;
+    min-height: 14px;
+    min-width: 14px;
     color: #98989d;
 }
 notebook header tab button:hover {
@@ -410,12 +411,12 @@ class MainWindow(Gtk.ApplicationWindow):
         sidebar_frame = Gtk.Frame()
         sidebar_frame.get_style_context().add_class("sidebar-frame")
         sidebar_frame.add(self._sidebar)
-        self._hpaned.pack1(sidebar_frame, resize=False, shrink=False)
+        self._hpaned.pack1(sidebar_frame, resize=False, shrink=True)
         self._hpaned.set_position(240)
 
-        # Right area: terminal notebook + optional SFTP pane
+        # Right area: terminal notebook (SFTP pane hidden by default)
         self._right_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        self._hpaned.pack2(self._right_paned, resize=True, shrink=True)
+        self._hpaned.pack2(self._right_paned, resize=True, shrink=False)
 
         # Terminal notebook
         self._notebook = Gtk.Notebook()
@@ -424,13 +425,14 @@ class MainWindow(Gtk.ApplicationWindow):
         self._notebook.connect("switch-page", self._on_tab_switched)
         self._right_paned.pack1(self._notebook, resize=True, shrink=True)
 
-        # SFTP browser (right)
+        # SFTP browser (right, hidden by default — shown on SSH connect)
         self._sftp_browser = SFTPBrowser()
-        sftp_frame = Gtk.Frame()
-        sftp_frame.get_style_context().add_class("sftp-frame")
-        sftp_frame.add(self._sftp_browser)
-        self._right_paned.pack2(sftp_frame, resize=False, shrink=True)
+        self._sftp_frame = Gtk.Frame()
+        self._sftp_frame.get_style_context().add_class("sftp-frame")
+        self._sftp_frame.add(self._sftp_browser)
+        self._right_paned.pack2(self._sftp_frame, resize=False, shrink=True)
         self._right_paned.set_position(800)
+        self._sftp_visible = False
 
         # Multi-exec bar at the bottom
         self._multi_exec = MultiExecBar(
@@ -462,6 +464,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.show_all()
 
+        # Hide SFTP pane by default — opened automatically on SSH connect
+        self._sftp_frame.hide()
+
         # Honour show_sidebar setting
         if not self._settings_mgr.settings.show_sidebar:
             sidebar_frame.hide()
@@ -492,6 +497,14 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Auto-open SFTP browser for SSH sessions
         self._sftp_browser.disconnect()
+        self._sftp_browser.connect_sftp(
+            host=session.host,
+            port=session.port,
+            username=session.username,
+            password=session.password,
+            private_key_path=session.private_key_path,
+        )
+        self._show_sftp_pane()
         self._push_status(f"SSH → {session.host}")
 
     def show_ssh_dialog(self):
@@ -620,6 +633,12 @@ class MainWindow(Gtk.ApplicationWindow):
         toggle_multi.set_active(False)
         toggle_multi.connect("toggled", self._on_toggle_multi)
         view_menu.append(toggle_multi)
+
+        self._toggle_sftp = Gtk.CheckMenuItem(label="SFTP File Browser")
+        self._toggle_sftp.set_active(False)
+        self._toggle_sftp.connect("toggled", self._on_toggle_sftp)
+        view_menu.append(self._toggle_sftp)
+
         menubar.append(view_item)
 
         # -- Macros menu --
@@ -709,8 +728,8 @@ class MainWindow(Gtk.ApplicationWindow):
         """Add a new terminal tab with a close button."""
         self._tab_counter += 1
 
-        # Tab label with close button — wide enough to show hostnames
-        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        # Tab label with close button — compact height, wide enough for hostnames
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
 
         # Connection-type icon
         if title.startswith("SSH") or "@" in title:
@@ -887,6 +906,26 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             self._multi_exec.hide()
             self._multi_exec.enabled = False
+
+    def _on_toggle_sftp(self, item):
+        if item.get_active():
+            self._show_sftp_pane()
+        else:
+            self._hide_sftp_pane()
+
+    def _show_sftp_pane(self):
+        """Show the SFTP file browser panel."""
+        self._sftp_frame.show_all()
+        self._sftp_visible = True
+        alloc = self.get_allocation()
+        self._right_paned.set_position(alloc.width - 520)
+        self._toggle_sftp.set_active(True)
+
+    def _hide_sftp_pane(self):
+        """Hide the SFTP file browser panel."""
+        self._sftp_frame.hide()
+        self._sftp_visible = False
+        self._toggle_sftp.set_active(False)
 
     # ======================================================================
     # Multi-exec helpers
