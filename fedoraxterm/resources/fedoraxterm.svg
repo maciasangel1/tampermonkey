@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background rounded rectangle -->
+  <rect x="8" y="8" width="112" height="112" rx="20" ry="20" fill="#2d2d2d"/>
+  <!-- Terminal window chrome -->
+  <rect x="16" y="16" width="96" height="96" rx="8" ry="8" fill="#1e1e2e"/>
+  <!-- Title bar -->
+  <rect x="16" y="16" width="96" height="14" rx="8" ry="8" fill="#45475a"/>
+  <rect x="16" y="24" width="96" height="6" fill="#45475a"/>
+  <!-- Traffic lights -->
+  <circle cx="28" cy="23" r="3" fill="#f38ba8"/>
+  <circle cx="38" cy="23" r="3" fill="#f9e2af"/>
+  <circle cx="48" cy="23" r="3" fill="#a6e3a1"/>
+  <!-- Prompt line 1: $ ssh user@server -->
+  <text x="24" y="48" font-family="monospace" font-size="10" fill="#89b4fa">$</text>
+  <text x="34" y="48" font-family="monospace" font-size="10" fill="#a6e3a1">ssh</text>
+  <text x="58" y="48" font-family="monospace" font-size="10" fill="#cdd6f4">user@srv</text>
+  <!-- Prompt line 2: connected -->
+  <text x="24" y="62" font-family="monospace" font-size="9" fill="#f9e2af">Connected</text>
+  <!-- Prompt line 3 -->
+  <text x="24" y="76" font-family="monospace" font-size="10" fill="#89b4fa">$</text>
+  <text x="34" y="76" font-family="monospace" font-size="10" fill="#cdd6f4">_</text>
+  <!-- Network icon (bottom-right) -->
+  <g transform="translate(80, 78)">
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#89b4fa" stroke-width="1.5"/>
+    <path d="M6,12 Q12,4 18,12 Q12,20 6,12" fill="none" stroke="#89b4fa" stroke-width="1"/>
+    <line x1="12" y1="1" x2="12" y2="23" stroke="#89b4fa" stroke-width="0.8"/>
+    <line x1="1" y1="12" x2="23" y2="12" stroke="#89b4fa" stroke-width="0.8"/>
+  </g>
+</svg>

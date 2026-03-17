@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=FedoraXTerm
+GenericName=Terminal and SSH Client
+Comment=A MobaXterm-like terminal, SSH, SFTP, RDP, VNC, and network tools client for Linux
+Exec=fedoraxterm
+Icon=fedoraxterm
+Terminal=false
+Categories=System;TerminalEmulator;Network;RemoteAccess;
+Keywords=terminal;ssh;sftp;rdp;vnc;telnet;serial;network;
+StartupNotify=true
+StartupWMClass=com.github.fedoraxterm
