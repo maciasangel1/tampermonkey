@@ -21,7 +21,7 @@ class TestAppSettings:
         assert s.confirm_close_tab is True
         assert s.cursor_style == "block"
         assert s.cursor_blink is True
-        assert s.tab_position == "left"
+        assert s.tab_position == "top"
         assert s.terminal_bell is True
         assert s.bold_is_bright is True
         assert s.copy_on_select is False

@@ -150,14 +150,14 @@ toolbar separator {
     min-width: 1px;
 }
 
-/* ---------- Notebook tabs (left-positioned, vertical) ---------- */
+/* ---------- Notebook tabs (top-positioned, horizontal) ---------- */
 notebook {
     background-color: #1c1c1e;
 }
 notebook header {
     background-color: #2c2c2e;
-    border-right: 1px solid #3a3a3c;
-    padding: 4px 0;
+    border-bottom: 1px solid #3a3a3c;
+    padding: 0 4px;
 }
 notebook header tabs {
     background: transparent;
@@ -165,9 +165,9 @@ notebook header tabs {
 notebook header tab {
     background-color: transparent;
     border: 1px solid transparent;
-    border-radius: 6px 0 0 6px;
-    padding: 4px 4px;
-    margin: 1px 0 1px 1px;
+    border-radius: 6px 6px 0 0;
+    padding: 4px 8px;
+    margin: 1px 1px 0 1px;
     color: #98989d;
     min-height: 20px;
     min-width: 24px;
@@ -175,8 +175,9 @@ notebook header tab {
 notebook header tab:checked {
     background-color: #1c1c1e;
     border-color: #3a3a3c;
-    border-right-color: #1c1c1e;
+    border-bottom-color: #0a84ff;
     color: #f5f5f7;
+    box-shadow: inset 0 -2px 0 #0a84ff;
 }
 notebook header tab:hover:not(:checked) {
     background-color: rgba(255, 255, 255, 0.05);
@@ -184,7 +185,7 @@ notebook header tab:hover:not(:checked) {
 }
 notebook header tab label {
     font-size: 11px;
-    padding: 2px 0;
+    padding: 0 2px;
 }
 notebook header tab button {
     background: transparent;
@@ -423,7 +424,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._left_vpaned.pack2(self._sftp_frame, resize=True, shrink=True)
         self._sftp_visible = False
 
-        self._hpaned.pack1(self._left_vpaned, resize=True, shrink=False)
+        self._hpaned.pack1(self._left_vpaned, resize=True, shrink=True)
         self._hpaned.set_position(260)
 
         # Terminal notebook (right / centre area)
@@ -438,7 +439,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "right": Gtk.PositionType.RIGHT,
         }
         self._notebook.set_tab_pos(
-            pos_map.get(self._settings_mgr.settings.tab_position, Gtk.PositionType.LEFT)
+            pos_map.get(self._settings_mgr.settings.tab_position, Gtk.PositionType.TOP)
         )
         self._hpaned.pack2(self._notebook, resize=True, shrink=False)
 
@@ -738,8 +739,8 @@ class MainWindow(Gtk.ApplicationWindow):
         """Add a new terminal tab with a close button."""
         self._tab_counter += 1
 
-        # Tab label with close button — vertical layout for left-side tabs
-        tab_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        # Tab label with close button — horizontal layout for top-side tabs
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
 
         # Connection-type icon
         if title.startswith("SSH") or "@" in title:
@@ -865,7 +866,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _add_tab_at(self, widget, title: str, position: int = -1):
         """Insert a widget as a tab at a specific position (or end)."""
         self._tab_counter += 1
-        tab_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        tab_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
 
         tab_icon = Gtk.Image.new_from_icon_name(
             "view-dual-symbolic", Gtk.IconSize.MENU
@@ -1217,7 +1218,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "right": Gtk.PositionType.RIGHT,
         }
         pos = pos_map.get(
-            self._settings_mgr.settings.tab_position, Gtk.PositionType.LEFT
+            self._settings_mgr.settings.tab_position, Gtk.PositionType.TOP
         )
         self._notebook.set_tab_pos(pos)
 

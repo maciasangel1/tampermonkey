@@ -58,7 +58,7 @@ class AppSettings:
     terminal_fg_color: str = "#cdd6f4"
     cursor_style: str = "block"        # "block", "ibeam", "underline"
     cursor_blink: bool = True
-    tab_position: str = "left"         # "left", "top", "bottom", "right"
+    tab_position: str = "top"          # "left", "top", "bottom", "right"
     terminal_bell: bool = True
     bold_is_bright: bool = True
     copy_on_select: bool = False
