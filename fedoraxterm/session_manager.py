@@ -155,9 +155,10 @@ class SessionSidebar(Gtk.Box):
         menu.append(delete_item)
 
         menu.show_all()
-        # Pass None instead of the Gdk.EventButton to avoid a segfault
-        # caused by PyGObject event type conversion issues at the C level.
-        menu.popup_at_pointer(None)
+        # Keep a reference so Python's GC doesn't collect the menu while
+        # GTK is still displaying it (prevents segfault).
+        self._context_menu = menu
+        menu.popup(None, None, None, None, event.button, event.time)
 
     def _connect_session(self, session_name: str):
         session = self._sm.get_session(session_name)

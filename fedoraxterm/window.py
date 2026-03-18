@@ -868,9 +868,10 @@ class MainWindow(Gtk.ApplicationWindow):
         menu.append(paste_item)
 
         menu.show_all()
-        # Pass None instead of the Gdk.EventButton to avoid a segfault
-        # caused by PyGObject event type conversion issues at the C level.
-        menu.popup_at_pointer(None)
+        # Keep a reference so Python's GC doesn't collect the menu while
+        # GTK is still displaying it (prevents segfault).
+        self._tab_context_menu = menu
+        menu.popup(None, None, None, None, event.button, event.time)
         return True
 
     def _close_other_tabs(self, keep_terminal):
