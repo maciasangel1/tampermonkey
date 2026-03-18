@@ -867,8 +867,11 @@ class MainWindow(Gtk.ApplicationWindow):
         paste_item.connect("activate", lambda _i: _safe_call(terminal.paste_clipboard))
         menu.append(paste_item)
 
+        menu.attach_to_widget(widget)
         menu.show_all()
-        menu.popup_at_pointer(event)
+        # Pass None instead of the Gdk.EventButton to avoid a segfault
+        # caused by PyGObject event type conversion issues at the C level.
+        menu.popup_at_pointer(None)
         return True
 
     def _close_other_tabs(self, keep_terminal):
