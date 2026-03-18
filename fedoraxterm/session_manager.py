@@ -154,7 +154,6 @@ class SessionSidebar(Gtk.Box):
         delete_item.connect("activate", lambda _i: self._delete_session(session_name))
         menu.append(delete_item)
 
-        menu.attach_to_widget(self._tree)
         menu.show_all()
         # Pass None instead of the Gdk.EventButton to avoid a segfault
         # caused by PyGObject event type conversion issues at the C level.

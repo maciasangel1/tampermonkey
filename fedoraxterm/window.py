@@ -867,7 +867,6 @@ class MainWindow(Gtk.ApplicationWindow):
         paste_item.connect("activate", lambda _i: _safe_call(terminal.paste_clipboard))
         menu.append(paste_item)
 
-        menu.attach_to_widget(widget)
         menu.show_all()
         # Pass None instead of the Gdk.EventButton to avoid a segfault
         # caused by PyGObject event type conversion issues at the C level.
