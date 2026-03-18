@@ -433,7 +433,9 @@ class MainWindow(Gtk.ApplicationWindow):
         # Terminal notebook (right / centre area)
         self._notebook = Gtk.Notebook()
         self._notebook.set_scrollable(True)
-        self._notebook.popup_enable()
+        # NOTE: Do NOT call popup_enable() — it enables GTK's built-in
+        # right-click popup on tab labels which conflicts with our custom
+        # _on_tab_right_click context menu and causes a segfault.
         self._notebook.connect("switch-page", self._on_tab_switched)
         pos_map = {
             "left": Gtk.PositionType.LEFT,
@@ -820,14 +822,19 @@ class MainWindow(Gtk.ApplicationWindow):
 
         menu = Gtk.Menu()
 
+        def _safe_call(func, *args):
+            """Only invoke *func* if *terminal* is still in the notebook."""
+            if self._notebook.page_num(terminal) >= 0:
+                func(*args)
+
         # Close tab
         close_item = Gtk.MenuItem(label="Close")
-        close_item.connect("activate", lambda _i: self._on_close_tab(None, terminal))
+        close_item.connect("activate", lambda _i: _safe_call(self._on_close_tab, None, terminal))
         menu.append(close_item)
 
         # Close other tabs
         close_others = Gtk.MenuItem(label="Close Others")
-        close_others.connect("activate", lambda _i: self._close_other_tabs(terminal))
+        close_others.connect("activate", lambda _i: _safe_call(self._close_other_tabs, terminal))
         menu.append(close_others)
 
         menu.append(Gtk.SeparatorMenuItem())
@@ -841,23 +848,23 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Split horizontal
         split_h = Gtk.MenuItem(label="Split Horizontal")
-        split_h.connect("activate", lambda _i: self._split_terminal(terminal, Gtk.Orientation.HORIZONTAL))
+        split_h.connect("activate", lambda _i: _safe_call(self._split_terminal, terminal, Gtk.Orientation.HORIZONTAL))
         menu.append(split_h)
 
         # Split vertical
         split_v = Gtk.MenuItem(label="Split Vertical")
-        split_v.connect("activate", lambda _i: self._split_terminal(terminal, Gtk.Orientation.VERTICAL))
+        split_v.connect("activate", lambda _i: _safe_call(self._split_terminal, terminal, Gtk.Orientation.VERTICAL))
         menu.append(split_v)
 
         menu.append(Gtk.SeparatorMenuItem())
 
         # Copy / Paste
         copy_item = Gtk.MenuItem(label="Copy")
-        copy_item.connect("activate", lambda _i: terminal.copy_clipboard())
+        copy_item.connect("activate", lambda _i: _safe_call(terminal.copy_clipboard))
         menu.append(copy_item)
 
         paste_item = Gtk.MenuItem(label="Paste")
-        paste_item.connect("activate", lambda _i: terminal.paste_clipboard())
+        paste_item.connect("activate", lambda _i: _safe_call(terminal.paste_clipboard))
         menu.append(paste_item)
 
         menu.show_all()
