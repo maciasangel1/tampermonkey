@@ -51,26 +51,26 @@ window, .background {
 headerbar {
     background: linear-gradient(to bottom, #3a3a3c, #2c2c2e);
     border-bottom: 1px solid #1c1c1e;
-    padding: 4px 8px;
-    min-height: 38px;
+    padding: 2px 6px;
+    min-height: 28px;
 }
 headerbar .title {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
     color: #f5f5f7;
 }
 headerbar .subtitle {
-    font-size: 11px;
+    font-size: 10px;
     color: #98989d;
 }
 headerbar button {
     background: transparent;
     border: none;
-    border-radius: 6px;
-    padding: 4px 8px;
+    border-radius: 4px;
+    padding: 2px 4px;
     color: #f5f5f7;
-    min-height: 24px;
-    min-width: 24px;
+    min-height: 20px;
+    min-width: 20px;
 }
 headerbar button:hover {
     background-color: rgba(255, 255, 255, 0.1);
@@ -83,12 +83,12 @@ headerbar button:active {
 menubar {
     background-color: #2c2c2e;
     border-bottom: 1px solid #3a3a3c;
-    padding: 2px 6px;
+    padding: 1px 4px;
     color: #f5f5f7;
 }
 menubar > menuitem {
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
     color: #f5f5f7;
 }
 menubar > menuitem:hover {
@@ -118,15 +118,15 @@ menu separator {
 toolbar {
     background-color: #2c2c2e;
     border-bottom: 1px solid #3a3a3c;
-    padding: 3px 6px;
+    padding: 1px 4px;
 }
 toolbar .toolbar-button {
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 8px;
-    padding: 4px 10px;
+    border-radius: 4px;
+    padding: 2px 4px;
     color: #e5e5ea;
-    margin: 1px 2px;
+    margin: 0px 1px;
     transition: all 200ms ease;
 }
 toolbar .toolbar-button:hover {
@@ -142,11 +142,11 @@ toolbar .toolbar-button image {
 }
 toolbar .toolbar-button label {
     color: #e5e5ea;
-    font-size: 11px;
+    font-size: 10px;
 }
 toolbar separator {
     background-color: #48484a;
-    margin: 4px 4px;
+    margin: 2px 2px;
     min-width: 1px;
 }
 
@@ -387,6 +387,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Tab counter for unique tab names
         self._tab_counter = 0
+        self._focus_mode = False
 
         # -- Header bar --
         self._build_headerbar()
@@ -396,10 +397,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.add(main_vbox)
 
         # Menubar
-        main_vbox.pack_start(self._build_menubar(), False, False, 0)
+        self._menubar = self._build_menubar()
+        main_vbox.pack_start(self._menubar, False, False, 0)
 
         # Toolbar
-        main_vbox.pack_start(self._build_toolbar(), False, False, 0)
+        self._toolbar = self._build_toolbar()
+        main_vbox.pack_start(self._toolbar, False, False, 0)
 
         # Horizontal paned: left sidebar+SFTP | center terminal
         self._hpaned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -467,6 +470,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Apply settings
         self._apply_window_settings()
+
+        # Keyboard shortcut: F11 = toggle focus mode
+        self.connect("key-press-event", self._on_key_press)
 
         # Open an initial local terminal
         self.add_local_terminal_tab()
@@ -640,6 +646,11 @@ class MainWindow(Gtk.ApplicationWindow):
         toggle_sidebar.connect("toggled", self._on_toggle_sidebar)
         view_menu.append(toggle_sidebar)
 
+        self._toggle_toolbar = Gtk.CheckMenuItem(label="Show Toolbar")
+        self._toggle_toolbar.set_active(True)
+        self._toggle_toolbar.connect("toggled", self._on_toggle_toolbar)
+        view_menu.append(self._toggle_toolbar)
+
         toggle_multi = Gtk.CheckMenuItem(label="MultiExec Bar")
         toggle_multi.set_active(False)
         toggle_multi.connect("toggled", self._on_toggle_multi)
@@ -649,6 +660,13 @@ class MainWindow(Gtk.ApplicationWindow):
         self._toggle_sftp.set_active(False)
         self._toggle_sftp.connect("toggled", self._on_toggle_sftp)
         view_menu.append(self._toggle_sftp)
+
+        view_menu.append(Gtk.SeparatorMenuItem())
+
+        self._focus_mode_item = Gtk.CheckMenuItem(label="Focus Mode (F11)")
+        self._focus_mode_item.set_active(False)
+        self._focus_mode_item.connect("toggled", self._on_toggle_focus_mode)
+        view_menu.append(self._focus_mode_item)
 
         menubar.append(view_item)
 
@@ -686,12 +704,12 @@ class MainWindow(Gtk.ApplicationWindow):
         return menubar
 
     def _build_toolbar(self) -> Gtk.Box:
-        toolbar_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        toolbar_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=1)
         toolbar_box.get_style_context().add_class("toolbar")
-        toolbar_box.set_margin_start(6)
-        toolbar_box.set_margin_end(6)
-        toolbar_box.set_margin_top(2)
-        toolbar_box.set_margin_bottom(2)
+        toolbar_box.set_margin_start(4)
+        toolbar_box.set_margin_end(4)
+        toolbar_box.set_margin_top(1)
+        toolbar_box.set_margin_bottom(1)
 
         items = [
             ("utilities-terminal-symbolic", "Shell", self.add_local_terminal_tab),
@@ -709,21 +727,17 @@ class MainWindow(Gtk.ApplicationWindow):
         for icon_name, label_text, callback in items:
             if icon_name is None:
                 sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
-                sep.set_margin_top(4)
-                sep.set_margin_bottom(4)
-                toolbar_box.pack_start(sep, False, False, 4)
+                sep.set_margin_top(2)
+                sep.set_margin_bottom(2)
+                toolbar_box.pack_start(sep, False, False, 2)
                 continue
 
             btn = Gtk.Button()
             btn.get_style_context().add_class("toolbar-button")
             btn.set_relief(Gtk.ReliefStyle.NONE)
 
-            btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-            icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.SMALL_TOOLBAR)
-            btn_box.pack_start(icon, False, False, 0)
-            lbl = Gtk.Label(label=label_text)
-            btn_box.pack_start(lbl, False, False, 0)
-            btn.add(btn_box)
+            icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.MENU)
+            btn.set_image(icon)
 
             btn.set_tooltip_text(label_text)
             btn.connect("clicked", lambda _b, cb=callback: cb())
@@ -1261,6 +1275,36 @@ class MainWindow(Gtk.ApplicationWindow):
         self._sftp_frame.hide()
         self._sftp_visible = False
         self._toggle_sftp.set_active(False)
+
+    def _on_toggle_toolbar(self, item):
+        """Toggle the toolbar visibility."""
+        if item.get_active():
+            self._toolbar.show()
+        else:
+            self._toolbar.hide()
+
+    def _on_toggle_focus_mode(self, item):
+        """Toggle focus mode — maximize terminal by hiding chrome."""
+        self._focus_mode = item.get_active()
+        if self._focus_mode:
+            self._toolbar.hide()
+            self._menubar.hide()
+            self._left_vpaned.hide()
+            self._statusbar.hide()
+            self._toggle_toolbar.set_active(False)
+        else:
+            self._toolbar.show()
+            self._menubar.show()
+            self._left_vpaned.show()
+            self._statusbar.show()
+            self._toggle_toolbar.set_active(True)
+
+    def _on_key_press(self, widget, event):
+        """Handle keyboard shortcuts."""
+        if event.keyval == Gdk.KEY_F11:
+            self._focus_mode_item.set_active(not self._focus_mode)
+            return True
+        return False
 
     # ======================================================================
     # Multi-exec helpers
