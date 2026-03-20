@@ -80,10 +80,42 @@ class TerminalWidget(Gtk.Box):
     # -- Internal helpers ---------------------------------------------------
 
     def _on_button_press(self, widget, event):
-        """Show a context menu on right-click inside the terminal."""
+        """Handle right-click on the terminal.
+
+        Smart copy/paste behaviour (like SecureCRT / PuTTY):
+        * If text is selected **and** the clipboard is empty → auto-copy
+          the selection to the clipboard.
+        * If the clipboard already has text → auto-paste it into the
+          terminal.
+        * In either case, holding Shift with the right-click opens the
+          full context menu instead of the smart action.
+        """
         if event.button != 3:
             return False
 
+        # Shift+Right-click always opens the context menu
+        state = event.state & Gtk.accelerator_get_default_mod_mask()
+        if state & Gdk.ModifierType.SHIFT_MASK:
+            return self._show_context_menu(event)
+
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        has_clip_text = clipboard.wait_is_text_available()
+
+        if has_clip_text:
+            # Clipboard has content → paste
+            self.paste_clipboard()
+            return True
+
+        if self.has_selection():
+            # Selection exists and clipboard is empty → copy
+            self.copy_clipboard()
+            return True
+
+        # Nothing selected and clipboard is empty → show context menu
+        return self._show_context_menu(event)
+
+    def _show_context_menu(self, event):
+        """Build and display the terminal right-click context menu."""
         menu = Gtk.Menu()
 
         # Copy — only sensitive when text is selected

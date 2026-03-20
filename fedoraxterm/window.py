@@ -1423,7 +1423,36 @@ class MainWindow(Gtk.ApplicationWindow):
         if event.keyval == Gdk.KEY_F11:
             self._focus_mode_item.set_active(not self._focus_mode)
             return True
+
+        state = event.state & Gtk.accelerator_get_default_mod_mask()
+
+        # Ctrl+Shift+C → copy from active terminal
+        if (state == (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK)
+                and event.keyval in (Gdk.KEY_C, Gdk.KEY_c)):
+            term = self._get_active_terminal()
+            if term is not None:
+                term.copy_clipboard()
+            return True
+
+        # Ctrl+Shift+V → paste into active terminal
+        if (state == (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK)
+                and event.keyval in (Gdk.KEY_V, Gdk.KEY_v)):
+            term = self._get_active_terminal()
+            if term is not None:
+                term.paste_clipboard()
+            return True
+
         return False
+
+    def _get_active_terminal(self) -> Optional[TerminalWidget]:
+        """Return the TerminalWidget on the active notebook tab, or None."""
+        idx = self._notebook.get_current_page()
+        if idx < 0:
+            return None
+        page = self._notebook.get_nth_page(idx)
+        if isinstance(page, TerminalWidget):
+            return page
+        return None
 
     # ======================================================================
     # Multi-exec helpers
