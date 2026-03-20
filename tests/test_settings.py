@@ -25,6 +25,7 @@ class TestAppSettings:
         assert s.terminal_bell is True
         assert s.bold_is_bright is True
         assert s.copy_on_select is False
+        assert s.theme == "Catppuccin Mocha"
 
     def test_custom_values(self):
         s = AppSettings(font_size=14, show_sidebar=False)

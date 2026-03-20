@@ -50,6 +50,7 @@ class TerminalWidget(Gtk.Box):
 
         # Connect signals
         self.vte.connect("child-exited", self._on_child_exited)
+        self.vte.connect("button-press-event", self._on_button_press)
 
         # Spawn process
         self._spawn()
@@ -72,7 +73,44 @@ class TerminalWidget(Gtk.Box):
         """Return the terminal's current title."""
         return self.vte.get_window_title() or "Terminal"
 
+    def has_selection(self) -> bool:
+        """Return True if the terminal has selected text."""
+        return self.vte.get_has_selection()
+
     # -- Internal helpers ---------------------------------------------------
+
+    def _on_button_press(self, widget, event):
+        """Show a context menu on right-click inside the terminal."""
+        if event.button != 3:
+            return False
+
+        menu = Gtk.Menu()
+
+        # Copy — only sensitive when text is selected
+        copy_item = Gtk.MenuItem(label="Copy")
+        copy_item.connect("activate", lambda _i: self.copy_clipboard())
+        copy_item.set_sensitive(self.has_selection())
+        menu.append(copy_item)
+
+        # Paste — only sensitive when the clipboard has text
+        paste_item = Gtk.MenuItem(label="Paste")
+        paste_item.connect("activate", lambda _i: self.paste_clipboard())
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        paste_item.set_sensitive(clipboard.wait_is_text_available())
+        menu.append(paste_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Select All
+        select_all_item = Gtk.MenuItem(label="Select All")
+        select_all_item.connect("activate", lambda _i: self.vte.select_all())
+        menu.append(select_all_item)
+
+        menu.show_all()
+        # Keep a reference to prevent GC during popup
+        self._context_menu = menu
+        menu.popup(None, None, None, None, event.button, event.time)
+        return True
 
     def _apply_defaults(self):
         """Apply sensible default colours and font."""
@@ -104,7 +142,15 @@ class TerminalWidget(Gtk.Box):
         fg.parse(settings.terminal_fg_color)
         bg = Gdk.RGBA()
         bg.parse(settings.terminal_bg_color)
-        self.vte.set_colors(fg, bg, [])
+
+        palette = []
+        if hasattr(settings, "_palette") and settings._palette:
+            for h in settings._palette:
+                c = Gdk.RGBA()
+                c.parse(h)
+                palette.append(c)
+
+        self.vte.set_colors(fg, bg, palette)
 
         font_desc = Pango.FontDescription(
             f"{settings.font_family} {settings.font_size}"

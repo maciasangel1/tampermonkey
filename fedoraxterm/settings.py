@@ -62,6 +62,7 @@ class AppSettings:
     terminal_bell: bool = True
     bold_is_bright: bool = True
     copy_on_select: bool = False
+    theme: str = "Catppuccin Mocha"    # terminal colour theme name
 
 
 class SettingsManager:

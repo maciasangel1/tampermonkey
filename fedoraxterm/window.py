@@ -286,6 +286,18 @@ entry:focus {
 dialog .dialog-vbox {
     background-color: #2c2c2e;
 }
+dialog label {
+    color: #f5f5f7;
+}
+dialog checkbutton label {
+    color: #f5f5f7;
+}
+dialog notebook header tab label {
+    color: #98989d;
+}
+dialog notebook header tab:checked label {
+    color: #f5f5f7;
+}
 
 /* ---------- Frames & Panes ---------- */
 paned separator {
@@ -349,6 +361,81 @@ spinbutton {
 # Tab label width constraints (in characters)
 _TAB_LABEL_MIN_CHARS = 8   # Compact tabs — tooltip shows full title
 _TAB_LABEL_MAX_CHARS = 20  # Maximum before ellipsis kicks in
+
+# Terminal colour theme presets (name → {bg, fg, palette})
+# palette: 16-colour ANSI colours (8 normal + 8 bright)
+_THEME_PRESETS = {
+    "Catppuccin Mocha": {
+        "bg": "#1e1e2e",
+        "fg": "#cdd6f4",
+        "palette": [
+            "#45475a", "#f38ba8", "#a6e3a1", "#f9e2af",
+            "#89b4fa", "#f5c2e7", "#94e2d5", "#bac2de",
+            "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af",
+            "#89b4fa", "#f5c2e7", "#94e2d5", "#a6adc8",
+        ],
+    },
+    "Solarized Dark": {
+        "bg": "#002b36",
+        "fg": "#839496",
+        "palette": [
+            "#073642", "#dc322f", "#859900", "#b58900",
+            "#268bd2", "#d33682", "#2aa198", "#eee8d5",
+            "#002b36", "#cb4b16", "#586e75", "#657b83",
+            "#839496", "#6c71c4", "#93a1a1", "#fdf6e3",
+        ],
+    },
+    "Dracula": {
+        "bg": "#282a36",
+        "fg": "#f8f8f2",
+        "palette": [
+            "#21222c", "#ff5555", "#50fa7b", "#f1fa8c",
+            "#bd93f9", "#ff79c6", "#8be9fd", "#f8f8f2",
+            "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5",
+            "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
+        ],
+    },
+    "Nord": {
+        "bg": "#2e3440",
+        "fg": "#d8dee9",
+        "palette": [
+            "#3b4252", "#bf616a", "#a3be8c", "#ebcb8b",
+            "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
+            "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b",
+            "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4",
+        ],
+    },
+    "Gruvbox Dark": {
+        "bg": "#282828",
+        "fg": "#ebdbb2",
+        "palette": [
+            "#282828", "#cc241d", "#98971a", "#d79921",
+            "#458588", "#b16286", "#689d6a", "#a89984",
+            "#928374", "#fb4934", "#b8bb26", "#fabd2f",
+            "#83a598", "#d3869b", "#8ec07c", "#ebdbb2",
+        ],
+    },
+    "One Dark": {
+        "bg": "#282c34",
+        "fg": "#abb2bf",
+        "palette": [
+            "#282c34", "#e06c75", "#98c379", "#e5c07b",
+            "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
+            "#545862", "#e06c75", "#98c379", "#e5c07b",
+            "#61afef", "#c678dd", "#56b6c2", "#c8ccd4",
+        ],
+    },
+    "Tango": {
+        "bg": "#2e3436",
+        "fg": "#d3d7cf",
+        "palette": [
+            "#2e3436", "#cc0000", "#4e9a06", "#c4a000",
+            "#3465a4", "#75507b", "#06989a", "#d3d7cf",
+            "#555753", "#ef2929", "#8ae234", "#fce94f",
+            "#729fcf", "#ad7fa8", "#34e2e2", "#eeeeec",
+        ],
+    },
+}
 
 
 def _load_css():
@@ -495,7 +582,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def add_local_terminal_tab(self):
         """Open a new local shell terminal tab."""
-        settings = self._settings_mgr.settings
+        settings = self._get_terminal_settings()
         terminal = TerminalWidget(settings=settings)
         self._add_tab(terminal, "Local Shell")
 
@@ -508,7 +595,7 @@ class MainWindow(Gtk.ApplicationWindow):
             auth_method=session.auth_method,
             private_key_path=session.private_key_path,
         )
-        settings = self._settings_mgr.settings
+        settings = self._get_terminal_settings()
         terminal = TerminalWidget(settings=settings, ssh_command=cmd)
         label = session.display_label()
         self._add_tab(terminal, label)
@@ -946,7 +1033,7 @@ class MainWindow(Gtk.ApplicationWindow):
             return
 
         # Create new terminal
-        settings = self._settings_mgr.settings
+        settings = self._get_terminal_settings()
         new_terminal = TerminalWidget(settings=settings)
 
         # Create split pane
@@ -990,7 +1077,7 @@ class MainWindow(Gtk.ApplicationWindow):
             )
             cmd = rdp.build_command()
             term = TerminalWidget(
-                settings=self._settings_mgr.settings, ssh_command=cmd
+                settings=self._get_terminal_settings(), ssh_command=cmd
             )
             self._add_tab(term, f"RDP: {vals['host']}")
         dialog.destroy()
@@ -1009,7 +1096,7 @@ class MainWindow(Gtk.ApplicationWindow):
             )
             cmd = vnc.build_command()
             term = TerminalWidget(
-                settings=self._settings_mgr.settings, ssh_command=cmd
+                settings=self._get_terminal_settings(), ssh_command=cmd
             )
             self._add_tab(term, f"VNC: {vals['host']}")
         dialog.destroy()
@@ -1025,7 +1112,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 vals["host"], int(vals.get("port", "23") or "23")
             )
             term = TerminalWidget(
-                settings=self._settings_mgr.settings, ssh_command=cmd
+                settings=self._get_terminal_settings(), ssh_command=cmd
             )
             self._add_tab(term, f"Telnet: {vals['host']}")
         dialog.destroy()
@@ -1044,7 +1131,7 @@ class MainWindow(Gtk.ApplicationWindow):
             )
             cmd = serial.build_command()
             term = TerminalWidget(
-                settings=self._settings_mgr.settings, ssh_command=cmd
+                settings=self._get_terminal_settings(), ssh_command=cmd
             )
             self._add_tab(term, f"Serial: {vals['device']}")
         dialog.destroy()
@@ -1105,10 +1192,12 @@ class MainWindow(Gtk.ApplicationWindow):
             grid.attach(widget, 1, r, 1, 1)
             return r + 1
 
-        # Font family
-        font_entry = Gtk.Entry()
-        font_entry.set_text(s.font_family)
-        row = add_row(term_grid, "Font Family:", font_entry, row)
+        # Font family — use a font chooser button for easy selection
+        font_button = Gtk.FontButton()
+        font_button.set_font(f"{s.font_family} {s.font_size}")
+        font_button.set_use_font(True)
+        font_button.set_use_size(False)
+        row = add_row(term_grid, "Font Family:", font_button, row)
 
         # Font size
         font_size_spin = Gtk.SpinButton.new_with_range(6, 72, 1)
@@ -1158,6 +1247,13 @@ class MainWindow(Gtk.ApplicationWindow):
 
         row = 0
 
+        # Theme preset
+        theme_combo = Gtk.ComboBoxText()
+        for name in _THEME_PRESETS:
+            theme_combo.append(name, name)
+        theme_combo.set_active_id(s.theme if s.theme in _THEME_PRESETS else "Catppuccin Mocha")
+        row = add_row(appear_grid, "Theme:", theme_combo, row)
+
         # Background color
         bg_entry = Gtk.Entry()
         bg_entry.set_text(s.terminal_bg_color)
@@ -1167,6 +1263,16 @@ class MainWindow(Gtk.ApplicationWindow):
         fg_entry = Gtk.Entry()
         fg_entry.set_text(s.terminal_fg_color)
         row = add_row(appear_grid, "Foreground Color:", fg_entry, row)
+
+        # When theme changes, update bg/fg entries
+        def _on_theme_changed(combo):
+            tid = combo.get_active_id()
+            if tid and tid in _THEME_PRESETS:
+                preset = _THEME_PRESETS[tid]
+                bg_entry.set_text(preset["bg"])
+                fg_entry.set_text(preset["fg"])
+
+        theme_combo.connect("changed", _on_theme_changed)
 
         # Window width
         width_spin = Gtk.SpinButton.new_with_range(400, 4000, 10)
@@ -1211,8 +1317,9 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.show_all()
 
         if dialog.run() == Gtk.ResponseType.OK:
-            # Apply settings
-            s.font_family = font_entry.get_text().strip() or "Monospace"
+            # Apply settings — extract font family from the FontButton
+            font_desc = Pango.FontDescription(font_button.get_font())
+            s.font_family = font_desc.get_family() or "Monospace"
             s.font_size = int(font_size_spin.get_value())
             s.scrollback_lines = int(scroll_spin.get_value())
             s.cursor_style = cursor_combo.get_active_id() or "block"
@@ -1224,7 +1331,8 @@ class MainWindow(Gtk.ApplicationWindow):
             s.terminal_fg_color = fg_entry.get_text().strip() or "#cdd6f4"
             s.window_width = int(width_spin.get_value())
             s.window_height = int(height_spin.get_value())
-            s.tab_position = tab_pos_combo.get_active_id() or "left"
+            s.tab_position = tab_pos_combo.get_active_id() or "top"
+            s.theme = theme_combo.get_active_id() or "Catppuccin Mocha"
             s.show_sidebar = sidebar_check.get_active()
             s.confirm_close_tab = confirm_check.get_active()
 
@@ -1432,6 +1540,16 @@ class MainWindow(Gtk.ApplicationWindow):
     def _apply_window_settings(self):
         s = self._settings_mgr.settings
         self.set_default_size(s.window_width, s.window_height)
+
+    def _get_terminal_settings(self):
+        """Return settings enriched with the current theme palette."""
+        s = self._settings_mgr.settings
+        theme = _THEME_PRESETS.get(s.theme)
+        if theme:
+            s._palette = theme["palette"]
+        else:
+            s._palette = []
+        return s
 
     def _push_status(self, text: str):
         self._status_label.set_text(text)
