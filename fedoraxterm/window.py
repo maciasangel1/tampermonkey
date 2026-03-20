@@ -127,7 +127,6 @@ toolbar .toolbar-button {
     padding: 2px 4px;
     color: #e5e5ea;
     margin: 0px 1px;
-    transition: all 200ms ease;
 }
 toolbar .toolbar-button:hover {
     background-color: rgba(255, 255, 255, 0.08);
@@ -177,7 +176,6 @@ notebook header tab:checked {
     border-color: #3a3a3c;
     border-bottom-color: #0a84ff;
     color: #f5f5f7;
-    box-shadow: inset 0 -2px 0 #0a84ff;
 }
 notebook header tab:hover:not(:checked) {
     background-color: rgba(255, 255, 255, 0.05);
@@ -282,7 +280,6 @@ entry {
 }
 entry:focus {
     border-color: #0a84ff;
-    box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
 }
 
 /* ---------- Dialogs ---------- */
@@ -356,13 +353,17 @@ _TAB_LABEL_MAX_CHARS = 20  # Maximum before ellipsis kicks in
 
 def _load_css():
     """Load the macOS-inspired CSS theme into the default screen."""
-    provider = Gtk.CssProvider()
-    provider.load_from_data(_MACOS_CSS.encode("utf-8"))
-    screen = Gdk.Screen.get_default()
-    if screen:
-        Gtk.StyleContext.add_provider_for_screen(
-            screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+    try:
+        provider = Gtk.CssProvider()
+        provider.load_from_data(_MACOS_CSS.encode("utf-8"))
+        screen = Gdk.Screen.get_default()
+        if screen:
+            Gtk.StyleContext.add_provider_for_screen(
+                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+    except Exception:
+        # CSS loading is non-critical — fall back to default GTK theme
+        pass
 
 
 class MainWindow(Gtk.ApplicationWindow):

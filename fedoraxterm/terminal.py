@@ -113,28 +113,51 @@ class TerminalWidget(Gtk.Box):
         self.vte.set_scrollback_lines(settings.scrollback_lines)
 
     def _spawn(self):
-        """Spawn the child process (local shell or SSH)."""
+        """Spawn the child process (local shell or SSH).
+
+        Defers the actual spawn until the widget is realized so the VTE
+        terminal has a valid GDK window, avoiding potential segfaults in
+        older VTE/PyGObject combinations.
+        """
         if self._ssh_command:
-            argv = shlex.split(self._ssh_command)
+            self._spawn_argv = shlex.split(self._ssh_command)
         else:
             shell = os.environ.get("SHELL", "/bin/bash")
-            argv = [shell]
+            self._spawn_argv = [shell]
 
-        self.vte.spawn_async(
-            Vte.PtyFlags.DEFAULT,
-            os.environ.get("HOME"),
-            argv,
-            None,  # environment — inherit
-            GLib.SpawnFlags.DEFAULT,
-            None,  # child setup
-            None,  # child setup data
-            -1,  # timeout
-            None,  # cancellable
-            self._on_spawn_complete,
-        )
+        if self.vte.get_realized():
+            self._do_spawn()
+        else:
+            self.vte.connect("realize", lambda _w: self._do_spawn())
 
-    def _on_spawn_complete(self, terminal, pid, error):
-        """Handle spawn completion."""
+    def _do_spawn(self):
+        """Actually fork the child process inside the VTE terminal."""
+        try:
+            self.vte.spawn_async(
+                Vte.PtyFlags.DEFAULT,
+                os.environ.get("HOME"),
+                self._spawn_argv,
+                None,  # environment — inherit
+                GLib.SpawnFlags.SEARCH_PATH,
+                None,  # child setup
+                None,  # child setup data
+                -1,  # timeout
+                None,  # cancellable
+                self._on_spawn_complete,
+            )
+        except Exception as exc:
+            self.vte.feed(
+                f"\r\nFailed to spawn process: {exc}\r\n".encode()
+            )
+
+    def _on_spawn_complete(self, terminal, pid, *args):
+        """Handle spawn completion.
+
+        Accepts ``*args`` so it works regardless of whether the VTE
+        binding passes ``(terminal, pid, error)`` or
+        ``(terminal, pid, error, user_data)``.
+        """
+        error = args[0] if args else None
         if error:
             self.vte.feed(f"\r\nError spawning process: {error}\r\n".encode())
         else:
