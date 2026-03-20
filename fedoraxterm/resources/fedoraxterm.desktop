@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=FedoraXTerm
+GenericName=Terminal Emulator
+Comment=SecureCRT-compatible terminal emulator and SSH client
+Exec=fedoraxterm %U
+Icon=fedoraxterm
+Terminal=false
+Categories=System;TerminalEmulator;Network;
+Keywords=terminal;ssh;shell;console;securecrt;
+StartupNotify=true
+MimeType=x-scheme-handler/ssh;
