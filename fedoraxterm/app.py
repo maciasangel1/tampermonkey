@@ -14,7 +14,7 @@ class FedoraXTermApp(Gtk.Application):
     def __init__(self):
         super().__init__(
             application_id=__app_id__,
-            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
+            flags=Gio.ApplicationFlags.NON_UNIQUE,
         )
         self.window = None
         GLib.set_application_name(__app_name__)
@@ -26,11 +26,6 @@ class FedoraXTermApp(Gtk.Application):
 
             self.window = MainWindow(application=self)
         self.window.present()
-
-    def do_command_line(self, command_line):
-        """Handle command line arguments."""
-        self.activate()
-        return 0
 
     def do_startup(self):
         """Handle application startup — set up actions and menus."""
