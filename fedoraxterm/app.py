@@ -7,40 +7,10 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Vte", "2.91")
 
-from gi.repository import Gio, GLib, Gtk, Vte  # noqa: E402
+from gi.repository import Gio, Gtk  # noqa: E402
 
 from fedoraxterm import __app_id__, __version__  # noqa: E402
-
-
-class MainWindow(Gtk.ApplicationWindow):
-    """Primary application window with an embedded VTE terminal."""
-
-    def __init__(self, app: Gtk.Application) -> None:
-        super().__init__(application=app, title="FedoraXTerm")
-        self.set_default_size(900, 550)
-
-        terminal = Vte.Terminal()
-        terminal.spawn_async(
-            Vte.PtyFlags.DEFAULT,
-            None,  # working directory (inherit)
-            ["/bin/bash"],
-            None,  # environment (inherit)
-            GLib.SpawnFlags.DEFAULT,
-            None,  # child-setup callback
-            None,  # child-setup data
-            -1,    # timeout
-            None,  # cancellable
-            None,  # callback
-        )
-
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled.add(terminal)
-        self.add(scrolled)
-
-        terminal.connect("child-exited", lambda *_args: self.close())
-
-        self.show_all()
+from fedoraxterm.window import MainWindow  # noqa: E402
 
 
 class FedoraXTermApp(Gtk.Application):
@@ -84,27 +54,34 @@ class FedoraXTermApp(Gtk.Application):
     # ── Dialogs ──────────────────────────────────────────────────────
 
     def _show_about(self) -> None:
-        about = Gtk.AboutDialog(
-            transient_for=self.get_active_window(),
-            modal=True,
-            program_name="FedoraXTerm",
-            version=__version__,
-            comments="SecureCRT-compatible terminal emulator for Fedora Linux",
-            license_type=Gtk.License.GPL_3_0,
-            website="https://github.com/fedoraxterm/fedoraxterm",
-            website_label="GitHub Repository",
-            authors=["FedoraXTerm Contributors"],
-        )
-        about.run()
-        about.destroy()
+        window = self.get_active_window()
+        if window and hasattr(window, "_show_about"):
+            window._show_about()
+        else:
+            about = Gtk.AboutDialog(
+                transient_for=window,
+                modal=True,
+                program_name="FedoraXTerm",
+                version=__version__,
+                comments="SecureCRT-compatible terminal emulator for Fedora Linux",
+                license_type=Gtk.License.GPL_3_0,
+                website="https://github.com/fedoraxterm/fedoraxterm",
+                website_label="GitHub Repository",
+                authors=["FedoraXTerm Contributors"],
+            )
+            about.run()
+            about.destroy()
 
-    @staticmethod
-    def _show_preferences() -> None:
-        dialog = Gtk.MessageDialog(
-            message_type=Gtk.MessageType.INFO,
-            buttons=Gtk.ButtonsType.OK,
-            text="Preferences",
-            secondary_text="Preferences dialog is not yet implemented.",
-        )
-        dialog.run()
-        dialog.destroy()
+    def _show_preferences(self) -> None:
+        window = self.get_active_window()
+        if window and hasattr(window, "_show_settings_dialog"):
+            window._show_settings_dialog()
+        else:
+            dialog = Gtk.MessageDialog(
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text="Preferences",
+                secondary_text="Preferences dialog is not yet implemented.",
+            )
+            dialog.run()
+            dialog.destroy()
