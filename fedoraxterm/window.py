@@ -1071,9 +1071,46 @@ class MainWindow(Gtk.ApplicationWindow):
             self._notebook.set_current_page((current - 1) % n)
 
     def _on_find(self, *_args: object) -> None:
+        """Open a find dialog for the active terminal."""
         terminal = self._get_active_terminal()
-        if terminal is not None:
-            terminal._show_find_dialog()
+        if terminal is None:
+            return
+
+        dialog = Gtk.Dialog(
+            title="Find",
+            transient_for=self,
+            modal=True,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_FIND, Gtk.ResponseType.OK,
+        )
+
+        content = dialog.get_content_area()
+        entry = Gtk.Entry()
+        entry.set_placeholder_text("Search text\u2026")
+        content.pack_start(entry, expand=True, fill=True, padding=8)
+
+        regex_check = Gtk.CheckButton(label="Regular expression")
+        content.pack_start(regex_check, expand=False, fill=False, padding=4)
+
+        case_check = Gtk.CheckButton(label="Case sensitive")
+        case_check.set_active(True)
+        content.pack_start(case_check, expand=False, fill=False, padding=4)
+
+        dialog.show_all()
+
+        if dialog.run() == Gtk.ResponseType.OK:
+            pattern = entry.get_text()
+            if pattern:
+                terminal.search_text(
+                    pattern,
+                    regex=regex_check.get_active(),
+                    case_sensitive=case_check.get_active(),
+                )
+                terminal.search_next()
+
+        dialog.destroy()
 
     def _on_quick_connect(self, *_args: object) -> None:
         """Show a quick-connect dialog."""
