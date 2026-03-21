@@ -26,7 +26,6 @@ classifiers = [
     "Topic :: Terminals :: Terminal Emulators/X Terminals",
 ]
 dependencies = [
-    "PyGObject>=3.42.0",
     "paramiko>=3.0.0",
     "cryptography>=42.0.4,<46",
 ]

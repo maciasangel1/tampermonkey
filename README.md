@@ -81,7 +81,10 @@ chmod +x install.sh
 sudo dnf install python3-gobject python3-pip gtk3 vte291 openssh-clients
 
 # Install FedoRT
-pip install --user .
+pip install --user --force-reinstall .
+
+# Run
+fedort
 ```
 
 ### RPM Build

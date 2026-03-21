@@ -28,7 +28,7 @@ sudo dnf install -y \
 
 # ── Install FedoRT via pip (user mode) ─────────────────────────
 echo "==> Installing FedoRT …"
-pip install --user .
+pip install --user --force-reinstall .
 
 # ── Install desktop file ────────────────────────────────────────────
 DESKTOP_SRC="fedort/resources/fedort.desktop"
