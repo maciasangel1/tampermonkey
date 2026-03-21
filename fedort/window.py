@@ -606,7 +606,7 @@ class MainWindow(Gtk.ApplicationWindow):
         """Open a new local shell tab."""
         settings = self._get_terminal_settings()
         terminal = TerminalWidget(settings=settings)
-        terminal.connect("child-exited", self._on_child_exited_tab)
+        terminal.connect_child_exited(self._on_child_exited_tab)
         self._tab_counter += 1
         title = f"Terminal {self._tab_counter}"
         self._append_tab(terminal, title)
@@ -618,7 +618,7 @@ class MainWindow(Gtk.ApplicationWindow):
         cmd_list = build_ssh_command(session)
         command = " ".join(cmd_list)
         terminal.spawn_shell(command=command)
-        terminal.connect("child-exited", self._on_child_exited_tab)
+        terminal.connect_child_exited(self._on_child_exited_tab)
         title = session.session_name or session.hostname or "SSH"
         self._append_tab(terminal, title)
         self._set_status(f"Connected to {session.hostname}")
@@ -636,7 +636,7 @@ class MainWindow(Gtk.ApplicationWindow):
         settings = self._get_terminal_settings()
         terminal = TerminalWidget(settings=settings)
         terminal.spawn_shell(command=command)
-        terminal.connect("child-exited", self._on_child_exited_tab)
+        terminal.connect_child_exited(self._on_child_exited_tab)
         self._append_tab(terminal, title)
 
     def _append_tab(self, terminal: TerminalWidget, title: str) -> None:
@@ -1031,9 +1031,8 @@ class MainWindow(Gtk.ApplicationWindow):
             else:
                 self.set_title("FedoRT")
 
-    def _on_child_exited_tab(self, terminal: Vte.Terminal, _status: int) -> None:
+    def _on_child_exited_tab(self, terminal: TerminalWidget, _status: int) -> None:
         """Handle a terminal's child process exiting."""
-        # Find the TerminalWidget that wraps this VTE.
         for i in range(self._notebook.get_n_pages()):
             child = self._notebook.get_nth_page(i)
             if child is terminal or (isinstance(child, TerminalWidget) and not child.is_alive()):

@@ -100,6 +100,21 @@ class TerminalWidget(Gtk.Box):
         # Defer shell spawn until the widget is realised.
         self._vte.connect("realize", lambda *_a: self.spawn_shell())
 
+    # ── Public signal helpers ───────────────────────────────────────
+
+    def connect_child_exited(self, callback) -> int:
+        """Connect *callback* to the inner VTE ``child-exited`` signal.
+
+        The callback signature is ``callback(terminal_widget, status)``
+        where *terminal_widget* is this :class:`TerminalWidget` instance.
+
+        Returns the GObject signal handler id.
+        """
+        return self._vte.connect(
+            "child-exited",
+            lambda _vte, status: callback(self, status),
+        )
+
     # ── Settings application ────────────────────────────────────────
 
     def apply_settings(self, settings: AppSettings) -> None:
