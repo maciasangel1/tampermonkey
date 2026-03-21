@@ -1,4 +1,4 @@
-"""SSH tunnel / port-forwarding manager for FedoraXTerm.
+"""SSH tunnel / port-forwarding manager for FedoRT.
 
 Manages local, remote, and dynamic (SOCKS) SSH tunnels as background
 ``ssh`` processes.  Tunnels can be persisted to a JSON file and

@@ -1,4 +1,4 @@
-"""SSH key management for FedoraXTerm.
+"""SSH key management for FedoRT.
 
 Provides :class:`KeyManager` for generating, inspecting, converting, and
 managing SSH keys – mirroring the key-management features found in

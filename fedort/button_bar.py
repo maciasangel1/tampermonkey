@@ -1,4 +1,4 @@
-"""Customisable button-bar widget for FedoraXTerm.
+"""Customisable button-bar widget for FedoRT.
 
 Provides :class:`ButtonBarWidget`, a horizontal toolbar of
 quick-command buttons that send shell commands to the active terminal –
@@ -19,7 +19,7 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gdk, GLib, GObject, Gtk  # noqa: E402
 
-from fedoraxterm.settings import ButtonBarConfig  # noqa: E402
+from fedort.settings import ButtonBarConfig  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

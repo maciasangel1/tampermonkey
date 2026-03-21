@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh – Install FedoraXTerm on Fedora Linux
+# install.sh – Install FedoRT on Fedora Linux
 set -euo pipefail
 
 # ── Check for Fedora ────────────────────────────────────────────────
@@ -26,13 +26,13 @@ sudo dnf install -y \
     cairo-gobject-devel \
     pkg-config
 
-# ── Install FedoraXTerm via pip (user mode) ─────────────────────────
-echo "==> Installing FedoraXTerm …"
+# ── Install FedoRT via pip (user mode) ─────────────────────────
+echo "==> Installing FedoRT …"
 pip install --user .
 
 # ── Install desktop file ────────────────────────────────────────────
-DESKTOP_SRC="fedoraxterm/resources/fedoraxterm.desktop"
-DESKTOP_DST="${HOME}/.local/share/applications/fedoraxterm.desktop"
+DESKTOP_SRC="fedort/resources/fedort.desktop"
+DESKTOP_DST="${HOME}/.local/share/applications/fedort.desktop"
 
 if [[ -f "${DESKTOP_SRC}" ]]; then
     echo "==> Installing desktop entry → ${DESKTOP_DST}"
@@ -40,13 +40,13 @@ if [[ -f "${DESKTOP_SRC}" ]]; then
 fi
 
 # ── Install icon ────────────────────────────────────────────────────
-ICON_SRC="fedoraxterm/resources/fedoraxterm.svg"
-ICON_DST="${HOME}/.local/share/icons/hicolor/scalable/apps/fedoraxterm.svg"
+ICON_SRC="fedort/resources/fedort.svg"
+ICON_DST="${HOME}/.local/share/icons/hicolor/scalable/apps/fedort.svg"
 
 if [[ -f "${ICON_SRC}" ]]; then
     echo "==> Installing icon → ${ICON_DST}"
     install -Dm644 "${ICON_SRC}" "${ICON_DST}"
 fi
 
-echo "==> FedoraXTerm installed successfully."
-echo "    Run with: fedoraxterm"
+echo "==> FedoRT installed successfully."
+echo "    Run with: fedort"

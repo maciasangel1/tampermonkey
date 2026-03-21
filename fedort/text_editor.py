@@ -1,4 +1,4 @@
-"""Built-in text editor window for FedoraXTerm.
+"""Built-in text editor window for FedoRT.
 
 Provides :class:`TextEditorDialog`, a lightweight standalone editor
 window with monospace font, line numbers, find/replace, word-wrap

@@ -1,12 +1,12 @@
-%global pypi_name fedoraxterm
+%global pypi_name fedort
 
-Name:           fedoraxterm
+Name:           fedort
 Version:        1.0.0
 Release:        1%{?dist}
 Summary:        SecureCRT-compatible terminal emulator and SSH client for Fedora Linux
 
 License:        GPL-3.0-or-later
-URL:            https://github.com/fedoraxterm/fedoraxterm
+URL:            https://github.com/fedort/fedort
 Source0:        %{pypi_source}
 
 BuildArch:      noarch
@@ -22,7 +22,7 @@ Requires:       vte291
 Requires:       openssh-clients
 
 %description
-FedoraXTerm is a SecureCRT-compatible terminal emulator and SSH client
+FedoRT is a SecureCRT-compatible terminal emulator and SSH client
 built for Fedora Linux. It provides tabbed sessions, SSH/SFTP connectivity,
 session management, and a customizable interface using GTK 3 and VTE.
 
@@ -36,24 +36,24 @@ session management, and a customizable interface using GTK 3 and VTE.
 %py3_install
 
 # Desktop file
-install -Dm644 fedoraxterm/resources/fedoraxterm.desktop \
-    %{buildroot}%{_datadir}/applications/fedoraxterm.desktop
-desktop-file-validate %{buildroot}%{_datadir}/applications/fedoraxterm.desktop
+install -Dm644 fedort/resources/fedort.desktop \
+    %{buildroot}%{_datadir}/applications/fedort.desktop
+desktop-file-validate %{buildroot}%{_datadir}/applications/fedort.desktop
 
 # Icon
-install -Dm644 fedoraxterm/resources/fedoraxterm.svg \
-    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/fedoraxterm.svg
+install -Dm644 fedort/resources/fedort.svg \
+    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/fedort.svg
 
 %files
 %license COPYING
 %doc README.md
 %{python3_sitelib}/%{pypi_name}/
 %{python3_sitelib}/%{pypi_name}-*.egg-info/
-%{_bindir}/fedoraxterm
-%{_bindir}/fedoraxterm-gui
-%{_datadir}/applications/fedoraxterm.desktop
-%{_datadir}/icons/hicolor/scalable/apps/fedoraxterm.svg
+%{_bindir}/fedort
+%{_bindir}/fedort-gui
+%{_datadir}/applications/fedort.desktop
+%{_datadir}/icons/hicolor/scalable/apps/fedort.svg
 
 %changelog
-* Mon Jan 01 2025 FedoraXTerm Contributors <fedoraxterm@example.com> - 1.0.0-1
+* Mon Jan 01 2025 FedoRT Contributors <fedort@example.com> - 1.0.0-1
 - Initial package

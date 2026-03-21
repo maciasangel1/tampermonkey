@@ -1,4 +1,4 @@
-"""Tests for fedoraxterm.window module.
+"""Tests for fedort.window module.
 
 These tests validate the non-GUI logic in window.py – theme presets,
 tab-position mapping, CSS loading, and the helper structures.  GTK
@@ -26,7 +26,7 @@ class TestThemePresets(unittest.TestCase):
             import gi
             gi.require_version("Gtk", "3.0")
             gi.require_version("Vte", "2.91")
-            from fedoraxterm.window import _THEME_PRESETS, _TAB_POS_MAP, _APP_CSS
+            from fedort.window import _THEME_PRESETS, _TAB_POS_MAP, _APP_CSS
             cls._THEME_PRESETS = _THEME_PRESETS
             cls._TAB_POS_MAP = _TAB_POS_MAP
             cls._APP_CSS = _APP_CSS
@@ -96,7 +96,7 @@ class TestTabPositionMap(unittest.TestCase):
             import gi
             gi.require_version("Gtk", "3.0")
             gi.require_version("Vte", "2.91")
-            from fedoraxterm.window import _TAB_POS_MAP
+            from fedort.window import _TAB_POS_MAP
             cls._TAB_POS_MAP = _TAB_POS_MAP
             cls._available = True
         except (ImportError, ValueError):
@@ -119,7 +119,7 @@ class TestAppCSS(unittest.TestCase):
             import gi
             gi.require_version("Gtk", "3.0")
             gi.require_version("Vte", "2.91")
-            from fedoraxterm.window import _APP_CSS
+            from fedort.window import _APP_CSS
             cls._APP_CSS = _APP_CSS
             cls._available = True
         except (ImportError, ValueError):
@@ -154,7 +154,7 @@ class TestTabLabelConstants(unittest.TestCase):
             import gi
             gi.require_version("Gtk", "3.0")
             gi.require_version("Vte", "2.91")
-            from fedoraxterm.window import _TAB_LABEL_MIN_CHARS, _TAB_LABEL_MAX_CHARS
+            from fedort.window import _TAB_LABEL_MIN_CHARS, _TAB_LABEL_MAX_CHARS
             cls._min = _TAB_LABEL_MIN_CHARS
             cls._max = _TAB_LABEL_MAX_CHARS
             cls._available = True
@@ -189,8 +189,8 @@ class TestModuleImport(unittest.TestCase):
             gi.require_version("Vte", "2.91")
         except (ImportError, ValueError):
             self.skipTest("GTK/VTE not available")
-        import fedoraxterm.window
-        self.assertTrue(hasattr(fedoraxterm.window, "MainWindow"))
+        import fedort.window
+        self.assertTrue(hasattr(fedort.window, "MainWindow"))
 
     def test_import_app(self) -> None:
         if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
@@ -201,9 +201,9 @@ class TestModuleImport(unittest.TestCase):
             gi.require_version("Vte", "2.91")
         except (ImportError, ValueError):
             self.skipTest("GTK/VTE not available")
-        import fedoraxterm.app
-        self.assertTrue(hasattr(fedoraxterm.app, "FedoraXTermApp"))
-        self.assertTrue(hasattr(fedoraxterm.app, "MainWindow"))
+        import fedort.app
+        self.assertTrue(hasattr(fedort.app, "FedoRTApp"))
+        self.assertTrue(hasattr(fedort.app, "MainWindow"))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Session logging for FedoraXTerm.
+"""Session logging for FedoRT.
 
 Provides :class:`SessionLogger` for writing terminal output to log
 files in plain-text, HTML, or CSV format, and :class:`LogManager` for
@@ -29,7 +29,7 @@ _ANSI_COLORS: dict[int, str] = {
 
 _HTML_HEADER = (
     "<!DOCTYPE html>\n<html><head><meta charset='utf-8'>"
-    "<title>FedoraXTerm Session Log</title>"
+    "<title>FedoRT Session Log</title>"
     "<style>body{background:#1e1e1e;color:#d0d0d0;"
     "font-family:monospace;white-space:pre-wrap;}</style>"
     "</head><body>\n"
@@ -249,7 +249,7 @@ class LogManager:
 
     def __init__(self, log_dir: Optional[str] = None) -> None:
         self._log_dir: str = log_dir or str(
-            Path.home() / ".local" / "share" / "fedoraxterm" / "logs",
+            Path.home() / ".local" / "share" / "fedort" / "logs",
         )
         self.active_loggers: dict[str, SessionLogger] = {}
 

@@ -1,8 +1,8 @@
-# FedoraXTerm
+# FedoRT
 
 **SecureCRT-compatible terminal emulator and SSH client for Fedora Linux 43**
 
-FedoraXTerm is a full-featured terminal emulator and SSH client built natively
+FedoRT is a full-featured terminal emulator and SSH client built natively
 for Fedora Linux using GTK 3 and VTE. It aims to provide a familiar experience
 for users migrating from SecureCRT to a Linux-native, open-source solution.
 
@@ -45,7 +45,7 @@ for users migrating from SecureCRT to a Linux-native, open-source solution.
 ### Integration
 - **Desktop entry** – appears in GNOME/KDE application menus
 - **D-Bus interface** – scriptable session control
-- **Command-line launcher** – `fedoraxterm ssh://user@host`
+- **Command-line launcher** – `fedort ssh://user@host`
 
 ---
 
@@ -68,8 +68,8 @@ for users migrating from SecureCRT to a Linux-native, open-source solution.
 ### Quick Install (Fedora)
 
 ```bash
-git clone https://github.com/fedoraxterm/fedoraxterm.git
-cd fedoraxterm
+git clone https://github.com/fedort/fedort.git
+cd fedort
 chmod +x install.sh
 ./install.sh
 ```
@@ -80,14 +80,14 @@ chmod +x install.sh
 # Install system dependencies
 sudo dnf install python3-gobject python3-pip gtk3 vte291 openssh-clients
 
-# Install FedoraXTerm
+# Install FedoRT
 pip install --user .
 ```
 
 ### RPM Build
 
 ```bash
-rpmbuild -ba fedoraxterm.spec
+rpmbuild -ba fedort.spec
 ```
 
 ---
@@ -96,13 +96,13 @@ rpmbuild -ba fedoraxterm.spec
 
 ```bash
 # Launch the GUI
-fedoraxterm
+fedort
 
 # Connect directly via SSH URI
-fedoraxterm ssh://user@hostname:22
+fedort ssh://user@hostname:22
 
 # Alternative entry point
-fedoraxterm-gui
+fedort-gui
 ```
 
 ---
@@ -125,19 +125,19 @@ pytest tests/test_app.py -v
 ## Project Structure
 
 ```
-fedoraxterm/
+fedort/
 ├── __init__.py          # Package metadata
 ├── __main__.py          # Entry point
 ├── app.py               # GtkApplication
 └── resources/
-    ├── fedoraxterm.desktop
-    └── fedoraxterm.svg
+    ├── fedort.desktop
+    └── fedort.svg
 tests/
     └── __init__.py
 pyproject.toml           # Project configuration
 setup.py                 # Backward-compat shim
 install.sh               # Fedora installer
-fedoraxterm.spec         # RPM spec file
+fedort.spec         # RPM spec file
 COPYING                  # GPL-3.0 license
 README.md                # This file
 ```
@@ -146,7 +146,7 @@ README.md                # This file
 
 ## License
 
-FedoraXTerm is licensed under the
+FedoRT is licensed under the
 [GNU General Public License v3.0 or later](COPYING).
 
 ---

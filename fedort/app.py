@@ -1,4 +1,4 @@
-"""FedoraXTerm GTK Application."""
+"""FedoRT GTK Application."""
 
 from __future__ import annotations
 
@@ -9,12 +9,12 @@ gi.require_version("Vte", "2.91")
 
 from gi.repository import Gio, Gtk  # noqa: E402
 
-from fedoraxterm import __app_id__, __version__  # noqa: E402
-from fedoraxterm.window import MainWindow  # noqa: E402
+from fedort import __app_id__, __version__  # noqa: E402
+from fedort.window import MainWindow  # noqa: E402
 
 
-class FedoraXTermApp(Gtk.Application):
-    """GtkApplication for FedoraXTerm.
+class FedoRTApp(Gtk.Application):
+    """GtkApplication for FedoRT.
 
     Uses NON_UNIQUE so every invocation opens its own window rather than
     forwarding to an existing instance over D-Bus (which can hang when the
@@ -61,13 +61,13 @@ class FedoraXTermApp(Gtk.Application):
             about = Gtk.AboutDialog(
                 transient_for=window,
                 modal=True,
-                program_name="FedoraXTerm",
+                program_name="FedoRT",
                 version=__version__,
                 comments="SecureCRT-compatible terminal emulator for Fedora Linux",
                 license_type=Gtk.License.GPL_3_0,
-                website="https://github.com/fedoraxterm/fedoraxterm",
+                website="https://github.com/fedort/fedort",
                 website_label="GitHub Repository",
-                authors=["FedoraXTerm Contributors"],
+                authors=["FedoRT Contributors"],
             )
             about.run()
             about.destroy()

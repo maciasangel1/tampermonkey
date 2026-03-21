@@ -1,4 +1,4 @@
-"""Session-manager sidebar for FedoraXTerm.
+"""Session-manager sidebar for FedoRT.
 
 Provides a SecureCRT-style tree of saved sessions organised in folders,
 with search/filter, quick-connect, drag-and-drop reordering, and a
@@ -17,7 +17,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango
 
-from fedoraxterm.settings import SSHSession
+from fedort.settings import SSHSession
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ class SessionSidebar(Gtk.Box):
 
         Imports *SettingsManager* lazily to avoid circular imports.
         """
-        from fedoraxterm.settings import SettingsManager
+        from fedort.settings import SettingsManager
 
         mgr = SettingsManager()
         self.load_sessions(mgr.load_sessions())

@@ -1,4 +1,4 @@
-"""Keyword highlighting engine for FedoraXTerm.
+"""Keyword highlighting engine for FedoRT.
 
 Provides :class:`KeywordHighlighter` for matching user-defined patterns
 in terminal output and producing Pango-markup text suitable for GTK

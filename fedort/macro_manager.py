@@ -1,4 +1,4 @@
-"""Macro recording and playback engine for FedoraXTerm.
+"""Macro recording and playback engine for FedoRT.
 
 Provides a :class:`MacroManager` that records terminal commands into
 reusable :class:`Macro` objects, persists them to JSON, and plays them

@@ -1,4 +1,4 @@
-"""Settings management for FedoraXTerm.
+"""Settings management for FedoRT.
 
 Provides dataclass-based configuration with JSON persistence and
 XDG-compliant storage paths.  Modelled after SecureCRT's session /
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # ── XDG helpers ─────────────────────────────────────────────────────
 
-_APP_NAME = "fedoraxterm"
+_APP_NAME = "fedort"
 
 
 def _xdg_config_home() -> Path:
@@ -273,7 +273,7 @@ _BUTTON_BARS_DIR = "button_bars"
 class SettingsManager:
     """Centralised read/write access to all persistent configuration.
 
-    Directory layout under ``~/.config/fedoraxterm/``::
+    Directory layout under ``~/.config/fedort/``::
 
         settings.json            – global :class:`AppSettings`
         sessions/

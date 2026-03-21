@@ -1,4 +1,4 @@
-"""Credential storage for FedoraXTerm.
+"""Credential storage for FedoRT.
 
 Provides :class:`CredentialStore` for saving and retrieving connection
 credentials (hostnames, usernames, passwords, key passphrases) –
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # ── XDG helpers ──────────────────────────────────────────────────────
 
-_APP_NAME = "fedoraxterm"
+_APP_NAME = "fedort"
 _CRED_FILE = "credentials.json"
 
 
@@ -122,7 +122,7 @@ class CredentialStore:
     """Persist and retrieve connection credentials.
 
     Credentials are stored as JSON in
-    ``~/.config/fedoraxterm/credentials.json``.  Sensitive fields
+    ``~/.config/fedort/credentials.json``.  Sensitive fields
     (password, key_passphrase) are obfuscated with XOR + Base64 using a
     machine-specific key.
 

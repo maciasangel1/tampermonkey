@@ -1,4 +1,4 @@
-"""SFTP file-browser widget for FedoraXTerm.
+"""SFTP file-browser widget for FedoRT.
 
 Provides :class:`SFTPBrowser`, a :class:`Gtk.Box` subclass that presents
 a dual-pane–style remote file browser backed by :mod:`paramiko`.  All
@@ -21,7 +21,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, Pango  # noqa: E40
 
 import paramiko  # noqa: E402
 
-from fedoraxterm.settings import SSHSession  # noqa: E402
+from fedort.settings import SSHSession  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helpers

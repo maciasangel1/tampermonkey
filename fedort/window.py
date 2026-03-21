@@ -1,4 +1,4 @@
-"""Main application window for FedoraXTerm.
+"""Main application window for FedoRT.
 
 Provides the primary :class:`MainWindow` – a SecureCRT-inspired GTK3
 window that integrates every subsystem (terminal tabs, session sidebar,
@@ -20,19 +20,19 @@ gi.require_version("Vte", "2.91")
 
 from gi.repository import Gdk, GLib, GObject, Gtk, Pango, Vte  # noqa: E402
 
-from fedoraxterm import __version__  # noqa: E402
-from fedoraxterm.button_bar import ButtonBarWidget  # noqa: E402
-from fedoraxterm.multi_exec import MultiExecBar  # noqa: E402
-from fedoraxterm.session_manager import SessionSidebar  # noqa: E402
-from fedoraxterm.settings import (  # noqa: E402
+from fedort import __version__  # noqa: E402
+from fedort.button_bar import ButtonBarWidget  # noqa: E402
+from fedort.multi_exec import MultiExecBar  # noqa: E402
+from fedort.session_manager import SessionSidebar  # noqa: E402
+from fedort.settings import (  # noqa: E402
     AppSettings,
     SettingsManager,
     SSHSession,
     dataclass_to_dict,
 )
-from fedoraxterm.sftp_browser import SFTPBrowser  # noqa: E402
-from fedoraxterm.ssh_client import build_ssh_command, parse_connection_string  # noqa: E402
-from fedoraxterm.terminal import TerminalWidget  # noqa: E402
+from fedort.sftp_browser import SFTPBrowser  # noqa: E402
+from fedort.ssh_client import build_ssh_command, parse_connection_string  # noqa: E402
+from fedort.terminal import TerminalWidget  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +268,7 @@ class MainWindow(Gtk.ApplicationWindow):
     """
 
     def __init__(self, app: Gtk.Application) -> None:
-        super().__init__(application=app, title="FedoraXTerm")
+        super().__init__(application=app, title="FedoRT")
 
         # ── Settings ────────────────────────────────────────────────
         self._settings_mgr = SettingsManager()
@@ -1027,9 +1027,9 @@ class MainWindow(Gtk.ApplicationWindow):
         if isinstance(terminal, TerminalWidget):
             title = terminal.get_title()
             if title:
-                self.set_title(f"{title} – FedoraXTerm")
+                self.set_title(f"{title} – FedoRT")
             else:
-                self.set_title("FedoraXTerm")
+                self.set_title("FedoRT")
 
     def _on_child_exited_tab(self, terminal: Vte.Terminal, _status: int) -> None:
         """Handle a terminal's child process exiting."""
@@ -1168,7 +1168,7 @@ class MainWindow(Gtk.ApplicationWindow):
             import datetime
             log_dir = self._settings.log_directory or tempfile.gettempdir()
             ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"{log_dir}/fedoraxterm_{ts}.log"
+            path = f"{log_dir}/fedort_{ts}.log"
             terminal.set_logging(True, log_file_path=path)
             self._set_status(f"Logging to {path}")
 
@@ -1391,7 +1391,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_key_manager(self, *_args: object) -> None:
         """Open the SSH Key Manager dialog."""
         try:
-            from fedoraxterm.key_manager import KeyManager
+            from fedort.key_manager import KeyManager
             mgr = KeyManager()
             keys = mgr.list_keys()
             info_text = f"Found {len(keys)} SSH key(s) in default directory."
@@ -1406,7 +1406,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_credential_store(self, *_args: object) -> None:
         """Open the Credential Store dialog."""
         try:
-            from fedoraxterm.credential_store import CredentialStore
+            from fedort.credential_store import CredentialStore
             store = CredentialStore()
             store.load()
             creds = store.list_credentials()
@@ -1426,7 +1426,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_tunnel_manager(self, *_args: object) -> None:
         """Open the Tunnel Manager dialog."""
         try:
-            from fedoraxterm.tunnel_manager import TunnelManager
+            from fedort.tunnel_manager import TunnelManager
             mgr = TunnelManager()
             status = mgr.get_tunnel_status()
             count = len(status)
@@ -1438,7 +1438,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_macro_manager(self, *_args: object) -> None:
         """Open the Macro Manager dialog."""
         try:
-            from fedoraxterm.macro_manager import MacroManager
+            from fedort.macro_manager import MacroManager
             mgr = MacroManager()
             macros = mgr.list_macros()
             info_text = f"Found {len(macros)} macro(s)."
@@ -1451,7 +1451,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_key_mappings(self, *_args: object) -> None:
         """Open the Key Mappings dialog."""
         try:
-            from fedoraxterm.key_mappings import KeyMappingManager
+            from fedort.key_mappings import KeyMappingManager
             mgr = KeyMappingManager()
             mappings = mgr.list_mappings()
             info_text = f"Found {len(mappings)} key mapping(s)."
@@ -1466,7 +1466,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _show_text_editor(self, *_args: object) -> None:
         """Open the built-in text editor."""
         try:
-            from fedoraxterm.text_editor import TextEditorDialog
+            from fedort.text_editor import TextEditorDialog
             editor = TextEditorDialog(parent=self)
             editor.show_all()
         except Exception as exc:
@@ -1477,13 +1477,13 @@ class MainWindow(Gtk.ApplicationWindow):
         about = Gtk.AboutDialog(
             transient_for=self,
             modal=True,
-            program_name="FedoraXTerm",
+            program_name="FedoRT",
             version=__version__,
             comments="SecureCRT-compatible terminal emulator for Fedora Linux",
             license_type=Gtk.License.GPL_3_0,
-            website="https://github.com/fedoraxterm/fedoraxterm",
+            website="https://github.com/fedort/fedort",
             website_label="GitHub Repository",
-            authors=["FedoraXTerm Contributors"],
+            authors=["FedoRT Contributors"],
         )
         about.run()
         about.destroy()

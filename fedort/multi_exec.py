@@ -1,4 +1,4 @@
-"""Multi-execution broadcast bar for FedoraXTerm.
+"""Multi-execution broadcast bar for FedoRT.
 
 Provides :class:`MultiExecBar`, a GTK widget that sits at the bottom of
 the terminal area and broadcasts typed commands to every open terminal

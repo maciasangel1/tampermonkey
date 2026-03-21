@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=FedoraXTerm
+Name=FedoRT
 GenericName=Terminal Emulator
 Comment=SecureCRT-compatible terminal emulator and SSH client
-Exec=fedoraxterm %U
-Icon=fedoraxterm
+Exec=fedort %U
+Icon=fedort
 Terminal=false
 Categories=System;TerminalEmulator;Network;
 Keywords=terminal;ssh;shell;console;securecrt;

@@ -1,6 +1,6 @@
-"""SSH command builder for FedoraXTerm.
+"""SSH command builder for FedoRT.
 
-Translates :class:`~fedoraxterm.settings.SSHSession` configuration into
+Translates :class:`~fedort.settings.SSHSession` configuration into
 concrete ``ssh``, ``sftp``, ``scp``, and tunnel command-line invocations
 suitable for :func:`subprocess.Popen`.
 """
@@ -12,7 +12,7 @@ import shutil
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fedoraxterm.settings import SSHSession
+    from fedort.settings import SSHSession
 
 # ---------------------------------------------------------------------------
 # Helpers

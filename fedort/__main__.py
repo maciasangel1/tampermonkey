@@ -1,4 +1,4 @@
-"""FedoraXTerm entry point.
+"""FedoRT entry point.
 
 Launch the GTK application, handling missing display servers and
 import errors gracefully.
@@ -15,7 +15,7 @@ def _check_display() -> None:
     if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print(
             "ERROR: No display server detected. "
-            "Set DISPLAY or WAYLAND_DISPLAY before launching FedoraXTerm.",
+            "Set DISPLAY or WAYLAND_DISPLAY before launching FedoRT.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -41,9 +41,9 @@ def main() -> int:
     # NOTE: Do NOT set signal.SIGCHLD to SIG_IGN – it breaks VTE child
     # process reaping and causes zombie / premature-exit issues.
 
-    from fedoraxterm.app import FedoraXTermApp  # noqa: E402
+    from fedort.app import FedoRTApp  # noqa: E402
 
-    app = FedoraXTermApp()
+    app = FedoRTApp()
     return app.run(sys.argv)
 
 

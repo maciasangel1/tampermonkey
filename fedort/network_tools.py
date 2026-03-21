@@ -1,4 +1,4 @@
-"""Network diagnostic tools for FedoraXTerm.
+"""Network diagnostic tools for FedoRT.
 
 Provides ping, traceroute, NSLookup, port-scanning, and WHOIS
 utilities that mirror the toolbox found in SecureCRT.  Every tool

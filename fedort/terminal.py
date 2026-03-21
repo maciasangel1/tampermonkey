@@ -1,4 +1,4 @@
-"""VTE-based terminal widget for FedoraXTerm.
+"""VTE-based terminal widget for FedoRT.
 
 Wraps :class:`Vte.Terminal` with full SecureCRT-compatible features
 including search, logging, clipboard, zoom, and configurable appearance.
@@ -19,7 +19,7 @@ gi.require_version("Vte", "2.91")
 from gi.repository import Gdk, GLib, Gtk, Pango, Vte  # noqa: E402
 
 if TYPE_CHECKING:
-    from fedoraxterm.settings import AppSettings
+    from fedort.settings import AppSettings
 
 logger = logging.getLogger(__name__)
 
