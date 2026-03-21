@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fedort"
+version = "1.0.0"
+description = "SecureCRT-compatible terminal emulator and SSH client for Fedora Linux"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+authors = [
+    { name = "FedoRT Contributors" },
+]
+keywords = ["terminal", "ssh", "securecrt", "vte", "gtk", "fedora"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: GTK",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Networking",
+    "Topic :: Terminals :: Terminal Emulators/X Terminals",
+]
+dependencies = [
+    "paramiko>=3.0.0",
+    "cryptography>=42.0.4,<46",
+]
+
+[project.scripts]
+fedort = "fedort.__main__:main"
+fedort-gui = "fedort.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/fedort/fedort"
+Repository = "https://github.com/fedort/fedort"
+Issues = "https://github.com/fedort/fedort/issues"
+
+[tool.setuptools.packages.find]
+include = ["fedort*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

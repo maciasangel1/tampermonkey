@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=FedoRT
+GenericName=Terminal Emulator
+Comment=SecureCRT-compatible terminal emulator and SSH client
+Exec=fedort %U
+Icon=fedort
+Terminal=false
+Categories=System;TerminalEmulator;Network;
+Keywords=terminal;ssh;shell;console;securecrt;
+StartupNotify=true
+MimeType=x-scheme-handler/ssh;

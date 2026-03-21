@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Terminal body -->
+  <rect x="8" y="16" width="112" height="96" rx="8" ry="8"
+        fill="#2d2d2d" stroke="#51a2da" stroke-width="3"/>
+  <!-- Screen area -->
+  <rect x="16" y="28" width="96" height="72" rx="4" ry="4"
+        fill="#1a1a2e"/>
+  <!-- Prompt ">_" -->
+  <text x="28" y="74" font-family="monospace" font-size="36"
+        font-weight="bold" fill="#50fa7b">&gt;_</text>
+</svg>
