@@ -308,16 +308,26 @@ entry:focus {
 dialog .dialog-vbox {
     background-color: #2c2c2e;
 }
-dialog label {
+dialog label,
+dialog .dialog-vbox label,
+dialog grid label,
+dialog box label {
     color: #f5f5f7;
 }
-dialog checkbutton label {
+dialog checkbutton label,
+dialog .dialog-vbox checkbutton label {
     color: #f5f5f7;
 }
 dialog notebook header tab label {
     color: #98989d;
 }
 dialog notebook header tab:checked label {
+    color: #f5f5f7;
+}
+dialog spinbutton {
+    color: #f5f5f7;
+}
+dialog entry {
     color: #f5f5f7;
 }
 
@@ -521,7 +531,7 @@ def _load_css():
         screen = Gdk.Screen.get_default()
         if screen:
             Gtk.StyleContext.add_provider_for_screen(
-                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_USER
             )
     except Exception:
         # CSS loading is non-critical — fall back to default GTK theme
@@ -1474,6 +1484,12 @@ class MainWindow(Gtk.ApplicationWindow):
             lbl = Gtk.Label(label=label_text)
             lbl.set_xalign(1)
             lbl.set_halign(Gtk.Align.END)
+            # Force light text so the label is visible on the dark dialog
+            _lbl_css = Gtk.CssProvider()
+            _lbl_css.load_from_data(b"label { color: #f5f5f7; }")
+            lbl.get_style_context().add_provider(
+                _lbl_css, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1
+            )
             grid.attach(lbl, 0, r, 1, 1)
             widget.set_hexpand(True)
             grid.attach(widget, 1, r, 1, 1)

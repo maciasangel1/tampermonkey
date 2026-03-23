@@ -71,7 +71,6 @@ class SessionSidebar(Gtk.Box):
         col.pack_start(text_renderer, True)
         col.add_attribute(text_renderer, "text", 1)
         self._tree.append_column(col)
-        self._tree.set_fixed_height_mode(True)
 
         self._tree.connect("row-activated", self._on_row_activated)
         self._tree.connect("button-press-event", self._on_button_press)
