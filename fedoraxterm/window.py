@@ -28,6 +28,7 @@ from fedoraxterm.tunnel_manager import TunnelManager, create_tunnel_dialog
 from fedoraxterm.multi_exec import MultiExecBar
 from fedoraxterm.macro_manager import MacroManager, create_macro_dialog
 from fedoraxterm.text_editor import TextEditorDialog
+from fedoraxterm.local_file_browser import LocalFileBrowser
 from fedoraxterm.remote_sessions import (
     RDPSession,
     VNCSession,
@@ -604,7 +605,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self._hpaned.pack1(self._left_vpaned, resize=True, shrink=True)
         self._hpaned.set_position(260)
 
-        # Terminal notebook (right / centre area)
+        # Terminal notebook (right / centre area) — wrapped in a VPaned
+        # so the local file browser can sit below.
+        self._center_vpaned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
         self._notebook = Gtk.Notebook()
         self._notebook.set_scrollable(True)
         # NOTE: Do NOT call popup_enable() — it enables GTK's built-in
@@ -620,7 +623,19 @@ class MainWindow(Gtk.ApplicationWindow):
         self._notebook.set_tab_pos(
             pos_map.get(self._settings_mgr.settings.tab_position, Gtk.PositionType.TOP)
         )
-        self._hpaned.pack2(self._notebook, resize=True, shrink=False)
+        self._center_vpaned.pack1(self._notebook, resize=True, shrink=False)
+
+        # Local file browser (below terminal, hidden by default)
+        self._local_file_browser = LocalFileBrowser()
+        self._local_file_browser.set_on_close(self._hide_local_file_browser)
+        self._local_file_browser.set_on_open_file(self._on_local_file_open)
+        self._local_fb_frame = Gtk.Frame()
+        self._local_fb_frame.get_style_context().add_class("local-fb-frame")
+        self._local_fb_frame.add(self._local_file_browser)
+        self._center_vpaned.pack2(self._local_fb_frame, resize=True, shrink=True)
+        self._local_fb_visible = False
+
+        self._hpaned.pack2(self._center_vpaned, resize=True, shrink=False)
 
         # Multi-exec bar at the bottom
         self._multi_exec = MultiExecBar(
@@ -657,6 +672,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Hide SFTP pane by default — opened automatically on SSH connect
         self._sftp_frame.hide()
+
+        # Hide local file browser by default — toggled via View menu
+        self._local_fb_frame.hide()
 
         # Honour show_sidebar setting
         if not self._settings_mgr.settings.show_sidebar:
@@ -713,8 +731,11 @@ class MainWindow(Gtk.ApplicationWindow):
         current_page = self._notebook.get_nth_page(
             self._notebook.get_current_page()
         )
-        if current_page is terminal and self._sftp_visible:
-            self._sftp_browser.navigate_to(cwd)
+        if current_page is terminal:
+            if self._sftp_visible:
+                self._sftp_browser.navigate_to(cwd)
+            if self._local_fb_visible:
+                self._local_file_browser.navigate_to(cwd)
 
     def _on_ssh_child_exited(self, terminal, _status):
         """Handle SSH session exit — offer to reconnect."""
@@ -884,6 +905,11 @@ class MainWindow(Gtk.ApplicationWindow):
         self._toggle_sftp.connect("toggled", self._on_toggle_sftp)
         view_menu.append(self._toggle_sftp)
 
+        self._toggle_local_fb = Gtk.CheckMenuItem(label="Local File Browser")
+        self._toggle_local_fb.set_active(False)
+        self._toggle_local_fb.connect("toggled", self._on_toggle_local_fb)
+        view_menu.append(self._toggle_local_fb)
+
         view_menu.append(Gtk.SeparatorMenuItem())
 
         self._focus_mode_item = Gtk.CheckMenuItem(label="Focus Mode (F11)")
@@ -1029,14 +1055,17 @@ class MainWindow(Gtk.ApplicationWindow):
             self._update_tab_count()
 
     def _on_tab_switched(self, _notebook, page, _page_num):
-        """Update the window title when tabs change and sync SFTP directory."""
+        """Update the window title when tabs change and sync file browsers."""
         if hasattr(page, "get_title"):
             self.set_title(f"{page.get_title()} — {__app_name__}")
-        # Sync SFTP browser to the terminal's current directory
-        if self._sftp_visible and hasattr(page, "get_current_directory"):
+        # Sync browsers to the terminal's current directory
+        if hasattr(page, "get_current_directory"):
             cwd = page.get_current_directory()
             if cwd:
-                self._sftp_browser.navigate_to(cwd)
+                if self._sftp_visible:
+                    self._sftp_browser.navigate_to(cwd)
+                if self._local_fb_visible:
+                    self._local_file_browser.navigate_to(cwd)
 
     def _on_tab_right_click(self, widget, event, terminal):
         """Show context menu on right-click of a tab."""
@@ -1697,6 +1726,41 @@ class MainWindow(Gtk.ApplicationWindow):
         self._sftp_frame.hide()
         self._sftp_visible = False
         self._toggle_sftp.set_active(False)
+
+    def _on_toggle_local_fb(self, item):
+        if item.get_active():
+            self._show_local_file_browser()
+        else:
+            self._hide_local_file_browser()
+
+    def _show_local_file_browser(self):
+        """Show the local file browser below the terminal."""
+        self._local_fb_frame.show_all()
+        self._local_fb_visible = True
+        # Position the vertical split so terminal gets ~70%
+        alloc = self._center_vpaned.get_allocation()
+        self._center_vpaned.set_position(int(alloc.height * 0.7))
+        self._toggle_local_fb.set_active(True)
+        # Sync to active terminal's directory
+        idx = self._notebook.get_current_page()
+        if idx >= 0:
+            page = self._notebook.get_nth_page(idx)
+            if hasattr(page, "get_current_directory"):
+                cwd = page.get_current_directory()
+                if cwd:
+                    self._local_file_browser.navigate_to(cwd)
+
+    def _hide_local_file_browser(self):
+        """Hide the local file browser panel."""
+        self._local_fb_frame.hide()
+        self._local_fb_visible = False
+        self._toggle_local_fb.set_active(False)
+
+    def _on_local_file_open(self, filepath):
+        """Open a local file in the built-in text editor."""
+        from fedoraxterm.text_editor import TextEditorDialog
+        editor = TextEditorDialog(parent=self, filepath=filepath)
+        editor.show_all()
 
     def _on_sftp_open_file(self, local_path):
         """Open a downloaded file in the built-in text editor."""
