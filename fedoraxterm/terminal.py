@@ -48,6 +48,9 @@ class TerminalWidget(Gtk.Box):
         term_box.pack_start(scrollbar, False, False, 0)
         self.pack_start(term_box, True, True, 0)
 
+        # Callback lists for signal forwarding
+        self._child_exited_callbacks = []
+
         # Connect signals
         self.vte.connect("child-exited", self._on_child_exited)
         self.vte.connect("button-press-event", self._on_button_press)
@@ -96,6 +99,14 @@ class TerminalWidget(Gtk.Box):
     def connect_directory_changed(self, callback):
         """Register *callback(terminal, path)* for directory changes."""
         self._directory_changed_callbacks.append(callback)
+
+    def connect_child_exited(self, callback):
+        """Register *callback(terminal, status)* for child-exited.
+
+        The callback receives ``(TerminalWidget, status)`` — **not** the
+        raw ``Vte.Terminal`` — so callers can identify which widget fired.
+        """
+        self._child_exited_callbacks.append(callback)
 
     def has_selection(self) -> bool:
         """Return True if the terminal has selected text."""
@@ -275,6 +286,11 @@ class TerminalWidget(Gtk.Box):
         else:
             self._child_pid = pid
 
-    def _on_child_exited(self, _terminal, _status):
+    def _on_child_exited(self, _terminal, status):
         """Handle the child process exiting."""
         self.vte.feed(b"\r\n[Process exited]\r\n")
+        for cb in self._child_exited_callbacks:
+            try:
+                cb(self, status)
+            except Exception:
+                pass
