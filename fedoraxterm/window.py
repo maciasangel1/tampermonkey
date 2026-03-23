@@ -36,6 +36,28 @@ from fedoraxterm.remote_sessions import (
 )
 
 
+# Tab icon presets — maps display label → GTK icon name
+# Uses standard freedesktop / Adwaita icons available on most Linux systems.
+_TAB_ICON_PRESETS = [
+    ("Raspberry Pi", "computer"),
+    ("Ubuntu / Linux", "utilities-terminal-symbolic"),
+    ("Server / Proxmox", "network-server-symbolic"),
+    ("Desktop PC", "computer-symbolic"),
+    ("Mini PC / Beelink", "computer-symbolic"),
+    ("Laptop", "computer-symbolic"),
+    ("Cloud / VM", "network-workgroup-symbolic"),
+    ("Container / Docker", "emblem-system-symbolic"),
+    ("Router / Network", "network-wired-symbolic"),
+    ("Database", "drive-harddisk-symbolic"),
+    ("Monitor / Display", "preferences-desktop-display-symbolic"),
+    ("Remote Desktop", "preferences-desktop-remote-desktop-symbolic"),
+    ("USB / Serial", "media-removable-symbolic"),
+    ("Lock / Secure", "changes-prevent-symbolic"),
+    ("Home", "user-home-symbolic"),
+    ("Folder", "folder-symbolic"),
+]
+
+
 # ======================================================================
 # macOS-inspired CSS theme
 # ======================================================================
@@ -505,6 +527,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # SFTP browser (below sessions, hidden by default)
         self._sftp_browser = SFTPBrowser()
+        self._sftp_browser.set_on_open_file(self._on_sftp_open_file)
         self._sftp_frame = Gtk.Frame()
         self._sftp_frame.get_style_context().add_class("sftp-frame")
         self._sftp_frame.add(self._sftp_browser)
@@ -892,9 +915,14 @@ class MainWindow(Gtk.ApplicationWindow):
             self._update_tab_count()
 
     def _on_tab_switched(self, _notebook, page, _page_num):
-        """Update the window title when tabs change."""
+        """Update the window title when tabs change and sync SFTP directory."""
         if hasattr(page, "get_title"):
             self.set_title(f"{page.get_title()} — {__app_name__}")
+        # Sync SFTP browser to the terminal's current directory
+        if self._sftp_visible and hasattr(page, "get_current_directory"):
+            cwd = page.get_current_directory()
+            if cwd:
+                self._sftp_browser.navigate_to(cwd)
 
     def _on_tab_right_click(self, widget, event, terminal):
         """Show context menu on right-click of a tab."""
@@ -960,6 +988,18 @@ class MainWindow(Gtk.ApplicationWindow):
         clear_color_item.connect("activate", lambda _i: self._clear_tab_color(terminal))
         menu.append(clear_color_item)
 
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Set tab icon
+        icon_item = Gtk.MenuItem(label="Set Tab Icon…")
+        icon_item.connect("activate", lambda _i: self._set_tab_icon(terminal))
+        menu.append(icon_item)
+
+        # Clear tab icon
+        clear_icon_item = Gtk.MenuItem(label="Clear Tab Icon")
+        clear_icon_item.connect("activate", lambda _i: self._clear_tab_icon(terminal))
+        menu.append(clear_icon_item)
+
         menu.show_all()
         # Keep a reference so Python's GC doesn't collect the menu while
         # GTK is still displaying it (prevents segfault).
@@ -993,9 +1033,12 @@ class MainWindow(Gtk.ApplicationWindow):
             rgba = dialog.get_rgba()
             tab_widget = self._notebook.get_tab_label(terminal)
             if tab_widget:
+                # Compute relative luminance to pick contrasting text colour
+                luminance = 0.299 * rgba.red + 0.587 * rgba.green + 0.114 * rgba.blue
+                fg_color = "#000000" if luminance > 0.5 else "#ffffff"
                 css = (
                     f"* {{ background-color: {rgba.to_string()}; "
-                    f"border-radius: 6px 6px 0 0; }}"
+                    f"border-radius: 6px 6px 0 0; color: {fg_color}; }}"
                 )
                 provider = Gtk.CssProvider()
                 provider.load_from_data(css.encode("utf-8"))
@@ -1015,6 +1058,108 @@ class MainWindow(Gtk.ApplicationWindow):
             ctx = tab_widget.get_style_context()
             ctx.remove_provider(tab_widget._color_provider)
             del tab_widget._color_provider
+
+    def _set_tab_icon(self, terminal):
+        """Show a dialog to choose a preset icon for the tab."""
+        idx = self._notebook.page_num(terminal)
+        if idx < 0:
+            return
+
+        dialog = Gtk.Dialog(
+            title="Choose Tab Icon", transient_for=self, modal=True
+        )
+        dialog.add_button("_Cancel", Gtk.ResponseType.CANCEL)
+
+        content = dialog.get_content_area()
+        content.set_spacing(8)
+        content.set_margin_start(12)
+        content.set_margin_end(12)
+        content.set_margin_top(12)
+        content.set_margin_bottom(12)
+
+        lbl = Gtk.Label(label="Select an icon for this tab:")
+        lbl.set_xalign(0)
+        content.pack_start(lbl, False, False, 0)
+
+        # Grid of icon buttons
+        grid = Gtk.FlowBox()
+        grid.set_max_children_per_line(4)
+        grid.set_selection_mode(Gtk.SelectionMode.NONE)
+
+        chosen = [None]
+
+        for display_name, icon_name in _TAB_ICON_PRESETS:
+            btn = Gtk.Button()
+            btn_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            icon_img = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DND)
+            btn_box.pack_start(icon_img, False, False, 0)
+            btn_label = Gtk.Label(label=display_name)
+            btn_label.set_line_wrap(True)
+            btn_label.set_max_width_chars(12)
+            btn_label.set_justify(Gtk.Justification.CENTER)
+            btn_box.pack_start(btn_label, False, False, 0)
+            btn.add(btn_box)
+            btn.set_tooltip_text(display_name)
+
+            def _on_icon_clicked(_b, name=icon_name):
+                chosen[0] = name
+                dialog.response(Gtk.ResponseType.OK)
+
+            btn.connect("clicked", _on_icon_clicked)
+            grid.add(btn)
+
+        content.pack_start(grid, True, True, 0)
+        dialog.show_all()
+
+        if dialog.run() == Gtk.ResponseType.OK and chosen[0]:
+            tab_widget = self._notebook.get_tab_label(terminal)
+            if tab_widget:
+                # The EventBox contains a Box; the first child is the icon
+                tab_box = tab_widget.get_child()
+                if tab_box:
+                    children = tab_box.get_children()
+                    if children:
+                        # Replace the first Image widget
+                        old_icon = children[0]
+                        if isinstance(old_icon, Gtk.Image):
+                            old_icon.set_from_icon_name(chosen[0], Gtk.IconSize.MENU)
+        dialog.destroy()
+
+    def _clear_tab_icon(self, terminal):
+        """Reset the tab icon to the default based on the tab title."""
+        idx = self._notebook.page_num(terminal)
+        if idx < 0:
+            return
+        tab_widget = self._notebook.get_tab_label(terminal)
+        if not tab_widget:
+            return
+        tab_box = tab_widget.get_child()
+        if not tab_box:
+            return
+        children = tab_box.get_children()
+        if not children:
+            return
+        old_icon = children[0]
+        if not isinstance(old_icon, Gtk.Image):
+            return
+        # Determine the default icon from the label text
+        label_widget = children[1] if len(children) > 1 else None
+        title = ""
+        if label_widget and isinstance(label_widget, Gtk.Label):
+            title = label_widget.get_text()
+        if title.startswith("SSH") or "@" in title:
+            icon_name = "network-server-symbolic"
+        elif title.startswith("RDP"):
+            icon_name = "preferences-desktop-remote-desktop-symbolic"
+        elif title.startswith("VNC"):
+            icon_name = "preferences-desktop-display-symbolic"
+        elif title.startswith("Telnet"):
+            icon_name = "network-wired-symbolic"
+        elif title.startswith("Serial"):
+            icon_name = "media-removable-symbolic"
+        else:
+            icon_name = "utilities-terminal-symbolic"
+        old_icon.set_from_icon_name(icon_name, Gtk.IconSize.MENU)
 
     def _add_tab_at(self, widget, title: str, position: int = -1):
         """Insert a widget as a tab at a specific position (or end)."""
@@ -1432,6 +1577,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self._sftp_frame.hide()
         self._sftp_visible = False
         self._toggle_sftp.set_active(False)
+
+    def _on_sftp_open_file(self, local_path):
+        """Open a downloaded file in the built-in text editor."""
+        from fedoraxterm.text_editor import TextEditorDialog
+        editor = TextEditorDialog(parent=self, filepath=local_path)
+        editor.show_all()
 
     def _on_toggle_toolbar(self, item):
         """Toggle the toolbar visibility."""

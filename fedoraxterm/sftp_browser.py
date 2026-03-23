@@ -98,6 +98,10 @@ class SFTPBrowser(Gtk.Box):
         self._tree.append_column(col_size)
 
         self._tree.connect("row-activated", self._on_row_activated)
+        self._tree.connect("button-press-event", self._on_button_press)
+
+        # Callback invoked when a file should be opened in the editor
+        self._on_open_file_callback = None
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -112,6 +116,15 @@ class SFTPBrowser(Gtk.Box):
         self.pack_start(self._status, False, False, 0)
 
     # -- Public API ---------------------------------------------------------
+
+    def navigate_to(self, path: str):
+        """Navigate the SFTP browser to *path* if connected."""
+        if self._sftp:
+            self._list_dir(path)
+
+    def set_on_open_file(self, callback):
+        """Register a callback invoked with (local_path) when a file is opened."""
+        self._on_open_file_callback = callback
 
     def connect_sftp(self, host: str, port: int, username: str,
                      password: str = "", private_key_path: str = ""):
@@ -219,6 +232,52 @@ class SFTPBrowser(Gtk.Box):
         full_path = self._store.get_value(it, self.COL_PATH)
         if is_dir:
             self._list_dir(full_path)
+        else:
+            self._open_remote_file(full_path)
+
+    def _on_button_press(self, _tree, event):
+        """Handle right-click on the file tree."""
+        if event.button != 3:
+            return False
+        path_info = self._tree.get_path_at_pos(int(event.x), int(event.y))
+        if not path_info:
+            return False
+        treepath = path_info[0]
+        it = self._store.get_iter(treepath)
+        is_dir = self._store.get_value(it, self.COL_IS_DIR)
+        full_path = self._store.get_value(it, self.COL_PATH)
+
+        menu = Gtk.Menu()
+        if is_dir:
+            open_item = Gtk.MenuItem(label="Open Folder")
+            open_item.connect("activate", lambda _i: self._list_dir(full_path))
+            menu.append(open_item)
+        else:
+            edit_item = Gtk.MenuItem(label="Open in Editor")
+            edit_item.connect("activate", lambda _i: self._open_remote_file(full_path))
+            menu.append(edit_item)
+
+        menu.show_all()
+        self._context_menu = menu
+        menu.popup(None, None, None, None, event.button, event.time)
+        return True
+
+    def _open_remote_file(self, remote_path: str):
+        """Download a remote file to a temp directory and open it in the editor."""
+        if not self._sftp:
+            return
+        import tempfile
+        filename = os.path.basename(remote_path)
+        local_dir = tempfile.mkdtemp(prefix="fedoraxterm_")
+        local_path = os.path.join(local_dir, filename)
+
+        self._set_status(f"Downloading {filename}…")
+        thread = threading.Thread(
+            target=self._download_file_worker,
+            args=(remote_path, local_path),
+            daemon=True,
+        )
+        thread.start()
 
     def _on_path_activated(self, _widget):
         """Handle pressing Enter in the path entry."""
@@ -228,3 +287,17 @@ class SFTPBrowser(Gtk.Box):
         """Navigate to the parent directory."""
         parent = os.path.dirname(self._cwd.rstrip("/")) or "/"
         self._list_dir(parent)
+
+    def _download_file_worker(self, remote_path, local_path):
+        """Background: download a file via SFTP."""
+        try:
+            self._sftp.get(remote_path, local_path)
+            GLib.idle_add(self._on_file_downloaded, local_path)
+        except Exception as exc:
+            GLib.idle_add(self._set_status, f"Download failed: {exc}")
+
+    def _on_file_downloaded(self, local_path):
+        """Open the downloaded file in the editor."""
+        self._set_status(f"Downloaded {os.path.basename(local_path)}")
+        if self._on_open_file_callback:
+            self._on_open_file_callback(local_path)

@@ -73,6 +73,16 @@ class TerminalWidget(Gtk.Box):
         """Return the terminal's current title."""
         return self.vte.get_window_title() or "Terminal"
 
+    def get_current_directory(self) -> str:
+        """Return the terminal's current directory, or empty string."""
+        uri = self.vte.get_current_directory_uri()
+        if uri:
+            # URI is like file:///home/user — strip the scheme
+            if uri.startswith("file://"):
+                return uri[7:]
+            return uri
+        return ""
+
     def has_selection(self) -> bool:
         """Return True if the terminal has selected text."""
         return self.vte.get_has_selection()
