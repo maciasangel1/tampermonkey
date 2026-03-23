@@ -377,6 +377,63 @@ spinbutton {
     border: 1px solid #48484a;
     border-radius: 6px;
 }
+
+/* ---------- ComboBox ---------- */
+combobox button {
+    background: linear-gradient(to bottom, #3a3a3c, #2c2c2e);
+    color: #f5f5f7;
+    border: 1px solid #48484a;
+    border-radius: 6px;
+    min-height: 26px;
+}
+combobox button cellview {
+    color: #f5f5f7;
+}
+combobox button:hover {
+    background: linear-gradient(to bottom, #48484a, #3a3a3c);
+    border-color: #636366;
+}
+combobox window menu {
+    background-color: #2c2c2e;
+    border: 1px solid #48484a;
+}
+combobox window menu menuitem {
+    color: #f5f5f7;
+}
+combobox window menu menuitem:hover {
+    background-color: #0a84ff;
+}
+
+/* ---------- Font button ---------- */
+fontbutton button {
+    background: linear-gradient(to bottom, #3a3a3c, #2c2c2e);
+    color: #f5f5f7;
+    border: 1px solid #48484a;
+    border-radius: 6px;
+    min-height: 26px;
+}
+fontbutton button:hover {
+    background: linear-gradient(to bottom, #48484a, #3a3a3c);
+    border-color: #636366;
+}
+
+/* ---------- File chooser button ---------- */
+filechooserbutton button {
+    background: linear-gradient(to bottom, #3a3a3c, #2c2c2e);
+    color: #f5f5f7;
+    border: 1px solid #48484a;
+    border-radius: 6px;
+    min-height: 26px;
+}
+filechooserbutton button:hover {
+    background: linear-gradient(to bottom, #48484a, #3a3a3c);
+    border-color: #636366;
+}
+
+/* ---------- Dialog grid labels (ensure visibility) ---------- */
+grid > label {
+    color: #f5f5f7;
+}
 """
 
 
@@ -603,6 +660,7 @@ class MainWindow(Gtk.ApplicationWindow):
         """Open a new local shell terminal tab."""
         settings = self._get_terminal_settings()
         terminal = TerminalWidget(settings=settings)
+        terminal.connect_directory_changed(self._on_terminal_directory_changed)
         self._add_tab(terminal, "Local Shell")
 
     def add_ssh_terminal_tab(self, session: SSHSession):
@@ -617,6 +675,10 @@ class MainWindow(Gtk.ApplicationWindow):
         settings = self._get_terminal_settings()
         terminal = TerminalWidget(settings=settings, ssh_command=cmd)
         label = session.display_label()
+        # Store session for auto-reconnect
+        terminal._ssh_session = session
+        terminal.connect_directory_changed(self._on_terminal_directory_changed)
+        terminal.connect_child_exited(self._on_ssh_child_exited)
         self._add_tab(terminal, label)
 
         # Auto-enter saved password when the SSH prompt appears
@@ -634,6 +696,48 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self._show_sftp_pane()
         self._push_status(f"SSH → {session.host}")
+
+    def _on_terminal_directory_changed(self, terminal, cwd):
+        """Called when any terminal's working directory changes."""
+        # Only sync if the changed terminal is the active tab
+        current_page = self._notebook.get_nth_page(
+            self._notebook.get_current_page()
+        )
+        if current_page is terminal and self._sftp_visible:
+            self._sftp_browser.navigate_to(cwd)
+
+    def _on_ssh_child_exited(self, terminal, _status):
+        """Handle SSH session exit — offer to reconnect."""
+        session = getattr(terminal, "_ssh_session", None)
+        if session is None:
+            return
+        idx = self._notebook.page_num(terminal)
+        if idx < 0:
+            return
+        # Schedule reconnect prompt on idle to avoid signal handler issues
+        GLib.idle_add(self._prompt_reconnect, terminal, session)
+
+    def _prompt_reconnect(self, terminal, session):
+        """Ask the user whether to reconnect the SSH session."""
+        idx = self._notebook.page_num(terminal)
+        if idx < 0:
+            return False
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=f"Connection to {session.host} closed.",
+        )
+        dialog.format_secondary_text("Would you like to reconnect?")
+        response = dialog.run()
+        dialog.destroy()
+        if response == Gtk.ResponseType.YES:
+            # Remove old tab and open a new one
+            self._notebook.remove_page(idx)
+            self._update_tab_count()
+            self.add_ssh_terminal_tab(session)
+        return False  # Don't repeat GLib.idle_add
 
     def show_ssh_dialog(self):
         """Open the New SSH Session dialog, then connect."""

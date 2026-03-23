@@ -43,6 +43,13 @@ class SessionSidebar(Gtk.Box):
         add_btn.connect("clicked", self._on_add_clicked)
         header.pack_end(add_btn, False, False, 0)
 
+        folder_btn = Gtk.Button.new_from_icon_name(
+            "folder-new-symbolic", Gtk.IconSize.BUTTON
+        )
+        folder_btn.set_tooltip_text("New Folder")
+        folder_btn.connect("clicked", self._on_new_folder_clicked)
+        header.pack_end(folder_btn, False, False, 0)
+
         self.pack_start(header, False, False, 0)
 
         # -- TreeView (folder → sessions) --
@@ -97,6 +104,14 @@ class SessionSidebar(Gtk.Box):
         self._store.clear()
         folders: dict[str, Gtk.TreeIter] = {}
 
+        # Add empty folders first
+        if hasattr(self._sm, "_empty_folders"):
+            for folder_name in sorted(self._sm._empty_folders):
+                if folder_name not in folders:
+                    folders[folder_name] = self._store.append(
+                        None, ["folder", folder_name, ""]
+                    )
+
         for session in self._sm.sessions:
             if session.folder not in folders:
                 folders[session.folder] = self._store.append(
@@ -106,6 +121,10 @@ class SessionSidebar(Gtk.Box):
                 folders[session.folder],
                 ["network-server-symbolic", session.display_label(), session.name],
             )
+
+        # Remove empty folders that now have sessions
+        if hasattr(self._sm, "_empty_folders"):
+            self._sm._empty_folders -= {s.folder for s in self._sm.sessions}
 
         self._tree.expand_all()
 
@@ -127,12 +146,17 @@ class SessionSidebar(Gtk.Box):
             return False
         path_info = self._tree.get_path_at_pos(int(event.x), int(event.y))
         if not path_info:
-            return False
+            # Right-click on empty area — show generic menu
+            self._show_empty_area_menu(event)
+            return True
         path = path_info[0]
         it = self._store.get_iter(path)
         session_name = self._store.get_value(it, 2)
         if not session_name:
-            return False
+            # Clicked on a folder row
+            folder_name = self._store.get_value(it, 1)
+            self._show_folder_context_menu(event, folder_name)
+            return True
         self._show_context_menu(event, session_name)
         return True
 
@@ -182,17 +206,9 @@ class SessionSidebar(Gtk.Box):
         if dialog.run() == Gtk.ResponseType.OK:
             updated = dialog.get_session()
             if updated:
-                self._sm.update_session(
-                    session_name,
-                    name=updated.name,
-                    host=updated.host,
-                    port=updated.port,
-                    username=updated.username,
-                    password=updated.password,
-                    auth_method=updated.auth_method,
-                    private_key_path=updated.private_key_path,
-                    folder=updated.folder,
-                )
+                # Remove old session and add updated one to handle renames
+                self._sm.remove_session(session_name)
+                self._sm.add_session(updated)
                 self.refresh()
         dialog.destroy()
 
@@ -224,6 +240,155 @@ class SessionSidebar(Gtk.Box):
                 self._sm.add_session(session)
                 self.refresh()
         dialog.destroy()
+
+    # -- Folder management --------------------------------------------------
+
+    def _on_new_folder_clicked(self, _btn):
+        """Create a new empty folder."""
+        name = self._ask_folder_name("New Folder", "")
+        if name:
+            self._ensure_folder_exists(name)
+
+    def _show_folder_context_menu(self, event, folder_name: str):
+        """Display a right-click context menu for a folder row."""
+        menu = Gtk.Menu()
+
+        add_item = Gtk.MenuItem(label="Add Session to Folder…")
+        add_item.connect(
+            "activate", lambda _i: self._add_session_to_folder(folder_name)
+        )
+        menu.append(add_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        rename_item = Gtk.MenuItem(label="Rename Folder…")
+        rename_item.connect(
+            "activate", lambda _i: self._rename_folder(folder_name)
+        )
+        menu.append(rename_item)
+
+        if folder_name != "Default":
+            delete_item = Gtk.MenuItem(label="Delete Folder")
+            delete_item.connect(
+                "activate", lambda _i: self._delete_folder(folder_name)
+            )
+            menu.append(delete_item)
+
+        menu.show_all()
+        self._context_menu = menu
+        menu.popup(None, None, None, None, event.button, event.time)
+
+    def _show_empty_area_menu(self, event):
+        """Show context menu when right-clicking empty space."""
+        menu = Gtk.Menu()
+
+        new_session = Gtk.MenuItem(label="New Session…")
+        new_session.connect("activate", lambda _i: self._on_add_clicked(None))
+        menu.append(new_session)
+
+        new_folder = Gtk.MenuItem(label="New Folder…")
+        new_folder.connect(
+            "activate", lambda _i: self._on_new_folder_clicked(None)
+        )
+        menu.append(new_folder)
+
+        menu.show_all()
+        self._context_menu = menu
+        menu.popup(None, None, None, None, event.button, event.time)
+
+    def _ask_folder_name(self, title: str, current_name: str) -> str:
+        """Show a simple entry dialog to get a folder name."""
+        dialog = Gtk.Dialog(
+            title=title, transient_for=self.get_toplevel(), modal=True
+        )
+        dialog.add_button("_Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("_OK", Gtk.ResponseType.OK)
+
+        box = dialog.get_content_area()
+        box.set_spacing(8)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+
+        lbl = Gtk.Label(label="Folder name:")
+        lbl.set_xalign(0)
+        box.pack_start(lbl, False, False, 0)
+
+        entry = Gtk.Entry()
+        entry.set_text(current_name)
+        entry.set_activates_default(True)
+        box.pack_start(entry, False, False, 0)
+
+        dialog.set_default_response(Gtk.ResponseType.OK)
+        dialog.show_all()
+
+        result = ""
+        if dialog.run() == Gtk.ResponseType.OK:
+            result = entry.get_text().strip()
+        dialog.destroy()
+        return result
+
+    def _ensure_folder_exists(self, folder_name: str):
+        """Make sure a folder exists in the tree (even if empty)."""
+        # Check if any session already uses this folder
+        existing = [s for s in self._sm.sessions if s.folder == folder_name]
+        if not existing:
+            # Create a placeholder — add a dummy attribute to track empty folders
+            if not hasattr(self._sm, "_empty_folders"):
+                self._sm._empty_folders = set()
+            self._sm._empty_folders.add(folder_name)
+        self.refresh()
+
+    def _add_session_to_folder(self, folder_name: str):
+        """Create a new session pre-assigned to the given folder."""
+        dialog = _SSHSessionDialog(self.get_toplevel())
+        # Pre-fill the folder entry
+        dialog._folder_entry.set_text(folder_name)
+        if dialog.run() == Gtk.ResponseType.OK:
+            session = dialog.get_session()
+            if session:
+                self._sm.add_session(session)
+                self.refresh()
+        dialog.destroy()
+
+    def _rename_folder(self, old_name: str):
+        """Rename a folder by updating all sessions in it."""
+        new_name = self._ask_folder_name("Rename Folder", old_name)
+        if not new_name or new_name == old_name:
+            return
+        for session in self._sm.sessions:
+            if session.folder == old_name:
+                self._sm.update_session(session.name, folder=new_name)
+        # Update empty folders tracking
+        if hasattr(self._sm, "_empty_folders") and old_name in self._sm._empty_folders:
+            self._sm._empty_folders.discard(old_name)
+            self._sm._empty_folders.add(new_name)
+        self.refresh()
+
+    def _delete_folder(self, folder_name: str):
+        """Delete a folder, moving its sessions to Default."""
+        # Confirm deletion
+        dialog = Gtk.MessageDialog(
+            transient_for=self.get_toplevel(),
+            modal=True,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=f'Delete folder "{folder_name}"?',
+        )
+        dialog.format_secondary_text(
+            "Sessions in this folder will be moved to Default."
+        )
+        response = dialog.run()
+        dialog.destroy()
+        if response != Gtk.ResponseType.YES:
+            return
+        for session in self._sm.sessions:
+            if session.folder == folder_name:
+                self._sm.update_session(session.name, folder="Default")
+        if hasattr(self._sm, "_empty_folders"):
+            self._sm._empty_folders.discard(folder_name)
+        self.refresh()
 
     def _on_quick_connect(self, _widget):
         """Handle the quick-connect bar."""
@@ -309,6 +474,8 @@ class _SSHSessionDialog(Gtk.Dialog):
             self._user_entry.set_text(session.username)
             self._pass_entry.set_text(session.password)
             self._auth_combo.set_active_id(session.auth_method)
+            if session.private_key_path:
+                self._key_chooser.set_filename(session.private_key_path)
             self._folder_entry.set_text(session.folder)
 
         self.get_content_area().add(grid)

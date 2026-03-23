@@ -52,6 +52,16 @@ class TerminalWidget(Gtk.Box):
         self.vte.connect("child-exited", self._on_child_exited)
         self.vte.connect("button-press-event", self._on_button_press)
 
+        # Directory change tracking
+        self._directory_changed_callbacks = []
+        try:
+            self.vte.connect(
+                "current-directory-uri-changed",
+                self._on_directory_changed,
+            )
+        except TypeError:
+            pass  # Signal not available in older VTE versions
+
         # Spawn process
         self._spawn()
 
@@ -83,11 +93,25 @@ class TerminalWidget(Gtk.Box):
             return uri
         return ""
 
+    def connect_directory_changed(self, callback):
+        """Register *callback(terminal, path)* for directory changes."""
+        self._directory_changed_callbacks.append(callback)
+
     def has_selection(self) -> bool:
         """Return True if the terminal has selected text."""
         return self.vte.get_has_selection()
 
     # -- Internal helpers ---------------------------------------------------
+
+    def _on_directory_changed(self, _vte):
+        """Called when VTE reports a directory change."""
+        cwd = self.get_current_directory()
+        if cwd:
+            for cb in self._directory_changed_callbacks:
+                try:
+                    cb(self, cwd)
+                except Exception:
+                    pass
 
     def _on_button_press(self, widget, event):
         """Handle right-click on the terminal.
