@@ -358,10 +358,6 @@ spinbutton {
 """
 
 
-# Tab label width constraints (in characters)
-_TAB_LABEL_MIN_CHARS = 8   # Compact tabs — tooltip shows full title
-_TAB_LABEL_MAX_CHARS = 20  # Maximum before ellipsis kicks in
-
 # Terminal colour theme presets (name → {bg, fg, palette})
 # palette: 16-colour ANSI colours (8 normal + 8 bright)
 _THEME_PRESETS = {
@@ -864,11 +860,8 @@ class MainWindow(Gtk.ApplicationWindow):
         tab_box.pack_start(tab_icon, False, False, 0)
 
         label = Gtk.Label(label=title)
-        label.set_width_chars(_TAB_LABEL_MIN_CHARS)
-        label.set_max_width_chars(_TAB_LABEL_MAX_CHARS)
-        label.set_ellipsize(Pango.EllipsizeMode.END)
         label.set_tooltip_text(title)
-        tab_box.pack_start(label, True, True, 0)
+        tab_box.pack_start(label, False, False, 0)
 
         close_btn = Gtk.Button()
         close_icon = Gtk.Image.new_from_icon_name(
@@ -955,6 +948,18 @@ class MainWindow(Gtk.ApplicationWindow):
         paste_item.connect("activate", lambda _i: _safe_call(terminal.paste_clipboard))
         menu.append(paste_item)
 
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Set tab colour
+        color_item = Gtk.MenuItem(label="Set Tab Color…")
+        color_item.connect("activate", lambda _i: self._set_tab_color(terminal))
+        menu.append(color_item)
+
+        # Clear tab colour
+        clear_color_item = Gtk.MenuItem(label="Clear Tab Color")
+        clear_color_item.connect("activate", lambda _i: self._clear_tab_color(terminal))
+        menu.append(clear_color_item)
+
         menu.show_all()
         # Keep a reference so Python's GC doesn't collect the menu while
         # GTK is still displaying it (prevents segfault).
@@ -975,6 +980,42 @@ class MainWindow(Gtk.ApplicationWindow):
                 self._notebook.remove_page(idx)
         self._update_tab_count()
 
+    def _set_tab_color(self, terminal):
+        """Open a colour chooser and apply the chosen colour to the tab."""
+        idx = self._notebook.page_num(terminal)
+        if idx < 0:
+            return
+        dialog = Gtk.ColorChooserDialog(
+            title="Choose Tab Color", transient_for=self
+        )
+        dialog.set_use_alpha(False)
+        if dialog.run() == Gtk.ResponseType.OK:
+            rgba = dialog.get_rgba()
+            tab_widget = self._notebook.get_tab_label(terminal)
+            if tab_widget:
+                css = (
+                    f"* {{ background-color: {rgba.to_string()}; "
+                    f"border-radius: 6px 6px 0 0; }}"
+                )
+                provider = Gtk.CssProvider()
+                provider.load_from_data(css.encode("utf-8"))
+                ctx = tab_widget.get_style_context()
+                ctx.add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
+                # Store provider so it can be removed later
+                tab_widget._color_provider = provider
+        dialog.destroy()
+
+    def _clear_tab_color(self, terminal):
+        """Remove any custom colour from the tab."""
+        idx = self._notebook.page_num(terminal)
+        if idx < 0:
+            return
+        tab_widget = self._notebook.get_tab_label(terminal)
+        if tab_widget and hasattr(tab_widget, "_color_provider"):
+            ctx = tab_widget.get_style_context()
+            ctx.remove_provider(tab_widget._color_provider)
+            del tab_widget._color_provider
+
     def _add_tab_at(self, widget, title: str, position: int = -1):
         """Insert a widget as a tab at a specific position (or end)."""
         self._tab_counter += 1
@@ -986,11 +1027,8 @@ class MainWindow(Gtk.ApplicationWindow):
         tab_box.pack_start(tab_icon, False, False, 0)
 
         label = Gtk.Label(label=title)
-        label.set_width_chars(_TAB_LABEL_MIN_CHARS)
-        label.set_max_width_chars(_TAB_LABEL_MAX_CHARS)
-        label.set_ellipsize(Pango.EllipsizeMode.END)
         label.set_tooltip_text(title)
-        tab_box.pack_start(label, True, True, 0)
+        tab_box.pack_start(label, False, False, 0)
 
         close_btn = Gtk.Button()
         close_icon = Gtk.Image.new_from_icon_name(

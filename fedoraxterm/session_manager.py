@@ -144,9 +144,13 @@ class SessionSidebar(Gtk.Box):
         connect_item.connect("activate", lambda _i: self._connect_session(session_name))
         menu.append(connect_item)
 
-        edit_item = Gtk.MenuItem(label="Edit Credentials…")
-        edit_item.connect("activate", lambda _i: self._edit_credentials(session_name))
+        edit_item = Gtk.MenuItem(label="Edit Session…")
+        edit_item.connect("activate", lambda _i: self._edit_session(session_name))
         menu.append(edit_item)
+
+        edit_cred_item = Gtk.MenuItem(label="Edit Credentials…")
+        edit_cred_item.connect("activate", lambda _i: self._edit_credentials(session_name))
+        menu.append(edit_cred_item)
 
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -168,6 +172,29 @@ class SessionSidebar(Gtk.Box):
     def _delete_session(self, session_name: str):
         self._sm.remove_session(session_name)
         self.refresh()
+
+    def _edit_session(self, session_name: str):
+        """Open a dialog to edit all fields of a saved session."""
+        session = self._sm.get_session(session_name)
+        if not session:
+            return
+        dialog = _SSHSessionDialog(self.get_toplevel(), session=session)
+        if dialog.run() == Gtk.ResponseType.OK:
+            updated = dialog.get_session()
+            if updated:
+                self._sm.update_session(
+                    session_name,
+                    name=updated.name,
+                    host=updated.host,
+                    port=updated.port,
+                    username=updated.username,
+                    password=updated.password,
+                    auth_method=updated.auth_method,
+                    private_key_path=updated.private_key_path,
+                    folder=updated.folder,
+                )
+                self.refresh()
+        dialog.destroy()
 
     def _edit_credentials(self, session_name: str):
         """Open a dialog to edit credentials for a saved session."""
