@@ -185,6 +185,7 @@ class SessionSidebar(Gtk.Box):
         # Keep a reference so Python's GC doesn't collect the menu while
         # GTK is still displaying it (prevents segfault).
         self._context_menu = menu
+        menu.attach_to_widget(self._tree, None)
         menu.popup(None, None, None, None, event.button, event.time)
 
     def _connect_session(self, session_name: str):
@@ -275,6 +276,7 @@ class SessionSidebar(Gtk.Box):
 
         menu.show_all()
         self._context_menu = menu
+        menu.attach_to_widget(self._tree, None)
         menu.popup(None, None, None, None, event.button, event.time)
 
     def _show_empty_area_menu(self, event):
@@ -293,6 +295,7 @@ class SessionSidebar(Gtk.Box):
 
         menu.show_all()
         self._context_menu = menu
+        menu.attach_to_widget(self._tree, None)
         menu.popup(None, None, None, None, event.button, event.time)
 
     def _ask_folder_name(self, title: str, current_name: str) -> str:

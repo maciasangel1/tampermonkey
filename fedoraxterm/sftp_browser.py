@@ -259,6 +259,7 @@ class SFTPBrowser(Gtk.Box):
 
         menu.show_all()
         self._context_menu = menu
+        menu.attach_to_widget(self._tree, None)
         menu.popup(None, None, None, None, event.button, event.time)
         return True
 

@@ -629,6 +629,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._local_file_browser = LocalFileBrowser()
         self._local_file_browser.set_on_close(self._hide_local_file_browser)
         self._local_file_browser.set_on_open_file(self._on_local_file_open)
+        self._local_file_browser.set_on_drop_to_terminal(self._on_fb_paste_to_terminal)
         self._local_fb_frame = Gtk.Frame()
         self._local_fb_frame.get_style_context().add_class("local-fb-frame")
         self._local_fb_frame.add(self._local_file_browser)
@@ -1147,6 +1148,8 @@ class MainWindow(Gtk.ApplicationWindow):
         # Keep a reference so Python's GC doesn't collect the menu while
         # GTK is still displaying it (prevents segfault).
         self._tab_context_menu = menu
+        # Attach to parent widget to avoid Wayland popup warnings.
+        menu.attach_to_widget(widget, None)
         menu.popup(None, None, None, None, event.button, event.time)
         return True
 
@@ -1761,6 +1764,14 @@ class MainWindow(Gtk.ApplicationWindow):
         from fedoraxterm.text_editor import TextEditorDialog
         editor = TextEditorDialog(parent=self, filepath=filepath)
         editor.show_all()
+
+    def _on_fb_paste_to_terminal(self, text):
+        """Paste text (e.g. a file path or cd command) into the active terminal."""
+        idx = self._notebook.get_current_page()
+        if idx >= 0:
+            page = self._notebook.get_nth_page(idx)
+            if hasattr(page, "feed_command"):
+                page.feed_command(text)
 
     def _on_sftp_open_file(self, local_path):
         """Open a downloaded file in the built-in text editor."""

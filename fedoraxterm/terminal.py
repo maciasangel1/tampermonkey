@@ -87,13 +87,25 @@ class TerminalWidget(Gtk.Box):
         return self.vte.get_window_title() or "Terminal"
 
     def get_current_directory(self) -> str:
-        """Return the terminal's current directory, or empty string."""
+        """Return the terminal's current directory, or empty string.
+
+        First checks VTE's directory URI (set by the shell's OSC 7 escape).
+        Falls back to reading ``/proc/<pid>/cwd`` so the file browser can
+        show the right directory even before the shell has emitted its
+        first directory-change signal.
+        """
         uri = self.vte.get_current_directory_uri()
         if uri:
             # URI is like file:///home/user — strip the scheme
             if uri.startswith("file://"):
                 return uri[7:]
             return uri
+        # Fallback: read the child process's working directory via /proc
+        if self._child_pid > 0:
+            try:
+                return os.readlink(f"/proc/{self._child_pid}/cwd")
+            except OSError:
+                pass
         return ""
 
     def connect_directory_changed(self, callback):
@@ -186,6 +198,9 @@ class TerminalWidget(Gtk.Box):
         menu.show_all()
         # Keep a reference to prevent GC during popup
         self._context_menu = menu
+        # Attach to parent widget to avoid Wayland "temporary window without
+        # parent" warning.
+        menu.attach_to_widget(self, None)
         menu.popup(None, None, None, None, event.button, event.time)
         return True
 
