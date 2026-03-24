@@ -625,14 +625,27 @@ class MainWindow(Gtk.ApplicationWindow):
         )
         self._center_vpaned.pack1(self._notebook, resize=True, shrink=False)
 
-        # Local file browser (below terminal, hidden by default)
+        # Bottom file browser area: a Gtk.Stack that switches between the
+        # local file browser (for local terminals) and an SFTP browser
+        # (for SSH terminals) so the user always sees the relevant filesystem.
+        self._browser_stack = Gtk.Stack()
+        self._browser_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+
+        # Local file browser
         self._local_file_browser = LocalFileBrowser()
         self._local_file_browser.set_on_close(self._hide_local_file_browser)
         self._local_file_browser.set_on_open_file(self._on_local_file_open)
         self._local_file_browser.set_on_drop_to_terminal(self._on_fb_paste_to_terminal)
+        self._browser_stack.add_named(self._local_file_browser, "local")
+
+        # Bottom SFTP browser (for SSH sessions)
+        self._bottom_sftp_browser = SFTPBrowser()
+        self._bottom_sftp_browser.set_on_open_file(self._on_sftp_open_file)
+        self._browser_stack.add_named(self._bottom_sftp_browser, "sftp")
+
         self._local_fb_frame = Gtk.Frame()
         self._local_fb_frame.get_style_context().add_class("local-fb-frame")
-        self._local_fb_frame.add(self._local_file_browser)
+        self._local_fb_frame.add(self._browser_stack)
         self._center_vpaned.pack2(self._local_fb_frame, resize=True, shrink=True)
         self._local_fb_visible = False
 
@@ -724,6 +737,28 @@ class MainWindow(Gtk.ApplicationWindow):
             private_key_path=session.private_key_path,
         )
         self._show_sftp_pane()
+
+        # Also connect the bottom-panel SFTP browser so the bottom file
+        # browser shows remote files instead of (useless) local ones.
+        self._bottom_sftp_browser.disconnect()
+        self._bottom_sftp_browser.connect_sftp(
+            host=session.host,
+            port=session.port,
+            username=session.username,
+            password=session.password,
+            private_key_path=session.private_key_path,
+        )
+        self._bottom_sftp_browser._connected_host = (
+            f"{session.username}@{session.host}:{session.port}"
+        )
+        # Switch the bottom browser stack to SFTP mode
+        self._browser_stack.set_visible_child_name("sftp")
+
+        # Auto-show the bottom file browser for SSH sessions so the user
+        # immediately sees the remote filesystem.
+        if not self._local_fb_visible:
+            self._show_local_file_browser()
+
         self._push_status(f"SSH → {session.host}")
 
     def _on_terminal_directory_changed(self, terminal, cwd):
@@ -733,10 +768,30 @@ class MainWindow(Gtk.ApplicationWindow):
             self._notebook.get_current_page()
         )
         if current_page is terminal:
+            is_ssh = hasattr(terminal, "_ssh_session") and terminal._ssh_session is not None
             if self._sftp_visible:
                 self._sftp_browser.navigate_to(cwd)
-            if self._local_fb_visible:
+            if self._local_fb_visible and not is_ssh:
                 self._local_file_browser.navigate_to(cwd)
+
+    def _ensure_bottom_sftp_connected(self, session: SSHSession):
+        """Connect (or reconnect) the bottom SFTP browser for *session*.
+
+        Avoids redundant reconnects if already connected to the same host.
+        """
+        current_host = getattr(self._bottom_sftp_browser, "_connected_host", None)
+        target = f"{session.username}@{session.host}:{session.port}"
+        if current_host == target:
+            return  # already connected to this session
+        self._bottom_sftp_browser.disconnect()
+        self._bottom_sftp_browser.connect_sftp(
+            host=session.host,
+            port=session.port,
+            username=session.username,
+            password=session.password,
+            private_key_path=session.private_key_path,
+        )
+        self._bottom_sftp_browser._connected_host = target
 
     def _on_ssh_child_exited(self, terminal, _status):
         """Handle SSH session exit — offer to reconnect."""
@@ -906,7 +961,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._toggle_sftp.connect("toggled", self._on_toggle_sftp)
         view_menu.append(self._toggle_sftp)
 
-        self._toggle_local_fb = Gtk.CheckMenuItem(label="Local File Browser")
+        self._toggle_local_fb = Gtk.CheckMenuItem(label="File Browser")
         self._toggle_local_fb.set_active(False)
         self._toggle_local_fb.connect("toggled", self._on_toggle_local_fb)
         view_menu.append(self._toggle_local_fb)
@@ -1059,13 +1114,26 @@ class MainWindow(Gtk.ApplicationWindow):
         """Update the window title when tabs change and sync file browsers."""
         if hasattr(page, "get_title"):
             self.set_title(f"{page.get_title()} — {__app_name__}")
+
+        is_ssh = hasattr(page, "_ssh_session") and page._ssh_session is not None
+
+        # Switch the bottom browser stack between local and SFTP mode
+        if is_ssh:
+            self._browser_stack.set_visible_child_name("sftp")
+            # Reconnect the bottom SFTP browser if switching to a
+            # different SSH session than the one currently connected.
+            session = page._ssh_session
+            self._ensure_bottom_sftp_connected(session)
+        else:
+            self._browser_stack.set_visible_child_name("local")
+
         # Sync browsers to the terminal's current directory
         if hasattr(page, "get_current_directory"):
             cwd = page.get_current_directory()
             if cwd:
                 if self._sftp_visible:
                     self._sftp_browser.navigate_to(cwd)
-                if self._local_fb_visible:
+                if self._local_fb_visible and not is_ssh:
                     self._local_file_browser.navigate_to(cwd)
 
     def _on_tab_right_click(self, widget, event, terminal):
@@ -1737,21 +1805,32 @@ class MainWindow(Gtk.ApplicationWindow):
             self._hide_local_file_browser()
 
     def _show_local_file_browser(self):
-        """Show the local file browser below the terminal."""
+        """Show the bottom file browser below the terminal.
+
+        Automatically selects the local file browser for local terminals
+        and the SFTP file browser for SSH terminals.
+        """
         self._local_fb_frame.show_all()
         self._local_fb_visible = True
         # Position the vertical split so terminal gets ~70%
         alloc = self._center_vpaned.get_allocation()
         self._center_vpaned.set_position(int(alloc.height * 0.7))
         self._toggle_local_fb.set_active(True)
-        # Sync to active terminal's directory
+
+        # Determine whether the active tab is SSH or local
         idx = self._notebook.get_current_page()
         if idx >= 0:
             page = self._notebook.get_nth_page(idx)
-            if hasattr(page, "get_current_directory"):
-                cwd = page.get_current_directory()
-                if cwd:
-                    self._local_file_browser.navigate_to(cwd)
+            is_ssh = hasattr(page, "_ssh_session") and page._ssh_session is not None
+            if is_ssh:
+                self._browser_stack.set_visible_child_name("sftp")
+                self._ensure_bottom_sftp_connected(page._ssh_session)
+            else:
+                self._browser_stack.set_visible_child_name("local")
+                if hasattr(page, "get_current_directory"):
+                    cwd = page.get_current_directory()
+                    if cwd:
+                        self._local_file_browser.navigate_to(cwd)
 
     def _hide_local_file_browser(self):
         """Hide the local file browser panel."""
